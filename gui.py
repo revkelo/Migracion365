@@ -23,6 +23,9 @@ class MigrationApp(ctk.CTk):
         super().__init__()
         self.title("Migrador365")
 
+        # Atributo para guardar el último tamaño (MB) reportado
+        self._last_size_mb = 0.0
+
         ctk.set_appearance_mode("light")
         ico_path = os.path.join("gui", "assets", "icono.ico")
         if os.path.exists(ico_path):
@@ -43,8 +46,10 @@ class MigrationApp(ctk.CTk):
         self._pulsing = False
         self._paused = False
         self._cancelled = False
+        self._ui_started = False  # para mostrar botones al obtener tokens
 
         self._create_widgets()
+        self.error_btn.place_forget()  # ocultar al inicio
         self.after(0, self._center_window)
 
     def _center_window(self):
@@ -59,7 +64,7 @@ class MigrationApp(ctk.CTk):
         try:
             img = Image.open(path)
             return ctk.CTkImage(img, size=self.ICON_SIZE)
-        except (FileNotFoundError, IOError) as e:
+        except Exception as e:
             mb.showerror("Error de Recursos", f"No se encontró la imagen:\n{path}\n\n{e}")
             blank = Image.new("RGBA", self.ICON_SIZE, (255,255,255,0))
             return ctk.CTkImage(blank, size=self.ICON_SIZE)
@@ -81,6 +86,7 @@ class MigrationApp(ctk.CTk):
             command=self.pause_migration, width=self.BUTTON_SIZE[0], height=self.BUTTON_SIZE[1]
         )
         self.pause_btn.grid(row=0, column=1, padx=5)
+        self.pause_btn.grid_remove()
 
         self.cancel_btn = ctk.CTkButton(
             btn_frame, text="Cancelar",
@@ -88,8 +94,8 @@ class MigrationApp(ctk.CTk):
             command=self.cancel_migration, width=self.BUTTON_SIZE[0], height=self.BUTTON_SIZE[1]
         )
         self.cancel_btn.grid(row=0, column=2, padx=5)
+        self.cancel_btn.grid_remove()
 
-        # Progress and icons
         frame = ctk.CTkFrame(self, fg_color=self.COLORS['background'])
         frame.pack(pady=5, padx=20, fill='x')
         frame.grid_columnconfigure(1, weight=1)
@@ -109,19 +115,17 @@ class MigrationApp(ctk.CTk):
         self.size_lbl = ctk.CTkLabel(self, text="Tamaño: —", text_color=self.COLORS['text'])
         self.size_lbl.pack(pady=(0,5))
 
-        # Error log button bottom right
         self.error_btn = ctk.CTkButton(
-            self, text="Ver errores",
+            self, text="Ver registro",
             fg_color=self.COLORS['primary_light'], hover_color=self.COLORS['primary_hover'],
             command=self.open_error_log, width=120, height=30
         )
-        self.error_btn.place(relx=1.0, rely=1.0, x=-10, y=-10, anchor='se')
 
     def start_migration(self):
         self._paused = False
         self._cancelled = False
+        self._ui_started = False
         self.start_btn.configure(state="disabled")
-        self.pause_btn.configure(text="Pausar")
         self.status_lbl.configure(text="Iniciando migración...")
         self.size_lbl.configure(text="Tamaño: —")
         self.progress.configure(mode="indeterminate")
@@ -144,19 +148,22 @@ class MigrationApp(ctk.CTk):
 
     def cancel_migration(self):
         self._cancelled = True
-        self.status_lbl.configure(text="Cancelando...")
+        for f in ["migration_progress.json", "token.pickle"]:
+            try:
+                if os.path.exists(f): os.remove(f)
+            except Exception:
+                pass
+        self.status_lbl.configure(text="Cancelado")
         self.pause_btn.configure(state="disabled")
         self.cancel_btn.configure(state="disabled")
 
     def open_error_log(self):
         log = DirectMigrator.ERROR_LOG
-        if os.path.exists(log):
+        if os.path.exists(log) and os.path.getsize(log) > 0:
             try:
                 os.startfile(log)
             except Exception:
-                mb.showinfo("Errores", f"Abrir: {log}")
-        else:
-            mb.showinfo("Errores", "No hay errores registrados.")
+                mb.showinfo("Registro de errores", f"Abrir: {log}")
 
     def _start_pulse(self):
         self._pulsing = True
@@ -172,21 +179,32 @@ class MigrationApp(ctk.CTk):
 
     def _run_thread(self):
         migrator = DirectMigrator(onedrive_folder="")
+
         def on_global(proc, total, name):
             if self._cancelled: return
             while self._paused:
                 time.sleep(0.1)
+            if not self._ui_started:
+                self.pause_btn.grid()
+                self.cancel_btn.grid()
+                self._ui_started = True
             pct = proc / total
+            # Actualizar barra y texto global
             self.after(0, lambda: self._update_global(pct, name))
+
         def on_file(sent, total_bytes, name):
             if self._cancelled: return
             while self._paused:
                 time.sleep(0.1)
             pctf = sent / total_bytes
             size_mb = total_bytes / (1024 * 1024)
+            # Guardar el último tamaño
+            self._last_size_mb = size_mb
+            # Mostrar tamaño y estado de subida
             self.after(0, lambda: self.size_lbl.configure(text=f"Tamaño: {size_mb:.2f} MB"))
             text = f"Subiendo '{name}': {pctf*100:.0f}%"
             self.after(0, lambda: self.status_lbl.configure(text=text))
+
         migrator.migrate(
             skip_existing=True,
             progress_callback=on_global,
@@ -199,8 +217,15 @@ class MigrationApp(ctk.CTk):
             self.progress.stop()
             self.progress.configure(mode="determinate")
             self._is_indeterminate = False
+        # Solo actualizamos el tamaño si ya tenemos un valor válido
+        if self._last_size_mb > 0:
+            self.size_lbl.configure(text=f"Tamaño: {self._last_size_mb:.2f} MB")
         self.progress.set(pct)
+        # Texto de estado global
         self.status_lbl.configure(text=f"Migrando: {name} ({pct*100:.0f}%)")
+
+        
+
 
     def _stop_pulse(self):
         self._pulsing = False
@@ -211,14 +236,13 @@ class MigrationApp(ctk.CTk):
             self.progress.stop()
         self._stop_pulse()
         self.progress.set(1)
+        self.pause_btn.grid_remove()
+        self.cancel_btn.grid_remove()
+        log = DirectMigrator.ERROR_LOG
+        if os.path.exists(log) and os.path.getsize(log) > 0:
+            self.error_btn.place(relx=1.0, rely=1.0, x=-10, y=-10, anchor='se')
         mb.showinfo("Migración", "Transferencia finalizada.")
         self.start_btn.configure(state="normal")
-        self.pause_btn.configure(state="normal", text="Pausar")
-        self.cancel_btn.configure(state="normal")
 
     def run(self):
         self.mainloop()
-
-if __name__ == "__main__":
-    app = MigrationApp()
-    app.run()
