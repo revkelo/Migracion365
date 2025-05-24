@@ -1,3 +1,4 @@
+import os
 import threading
 import customtkinter as ctk
 import tkinter.messagebox as mb
@@ -20,17 +21,17 @@ class MigrationApp(ctk.CTk):
     def __init__(self):
         super().__init__()
         self.title("Migrador365")
-        # Ícono de la ventana (mantener referencia)
-        self.icon_img = ImageTk.PhotoImage(Image.open("./Gui/onedrive.png"))
-        
+    
         ctk.set_appearance_mode("light")
+        if os.path.exists("./gui/assets/icono.ico"):
+            self.iconbitmap("./gui/assets/icono.ico")
         self.geometry(self.WINDOW_SIZE)
         self.eval('tk::PlaceWindow %s center' % self._w)
         self.resizable(False, False)
         self.configure(fg_color=self.COLORS['background'])
 
-        self.google_icon = ctk.CTkImage(Image.open("./Gui/googledrive.png"), size=self.ICON_SIZE)
-        self.onedrive_icon = ctk.CTkImage(Image.open("./Gui/onedrive.png"), size=self.ICON_SIZE)
+        self.google_icon = ctk.CTkImage(Image.open("./gui/assets/googledrive.png"), size=self.ICON_SIZE)
+        self.onedrive_icon = ctk.CTkImage(Image.open("./gui/assets/onedrive.png"), size=self.ICON_SIZE)
         self._is_indeterminate = False
         self._pulsing = False
 
