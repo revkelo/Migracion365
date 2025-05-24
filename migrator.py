@@ -5,32 +5,40 @@ from config import PROGRESS_FILE, LOG_FILE
 from utils import load_progress, save_progress
 from services.google_service import GoogleService
 from services.onedrive_service import OneDriveService
+import threading
+
+
+class MigrationCancelled(Exception):
+    """Excepción interna para indicar que la migración fue cancelada"""
+    pass
 
 class DirectMigrator:
     ERROR_LOG = 'migration_errors.txt'
 
-    def __init__(self, onedrive_folder: str = ''):
-        # Carpeta raíz en OneDrive
+    def __init__(
+        self,
+        onedrive_folder: str = '',
+        cancel_event: Optional[threading.Event] = None
+    ):
+        # Parámetro original
         self.onedrive_folder = onedrive_folder.strip('/')
-        
-        # Servicios
+        # Nuevo flag de cancelación
+        self.cancel_event = cancel_event
+
         self.google = GoogleService()
         self.one = OneDriveService()
-        
-        # Progreso
+
         self.progress = load_progress(PROGRESS_FILE)
-        
-        # Logger específico
+
+        # Logger original
         self.logger = logging.getLogger('DirectMigrator')
         self.logger.setLevel(logging.INFO)
         if not self.logger.handlers:
-            # Handler consola
             ch = logging.StreamHandler()
             ch.setFormatter(logging.Formatter(
                 "%(asctime)s — %(levelname)s — %(message)s"
             ))
             self.logger.addHandler(ch)
-            # Handler fichero
             fh = logging.FileHandler(LOG_FILE, encoding="utf-8")
             fh.setFormatter(logging.Formatter(
                 "%(asctime)s — %(levelname)s — %(message)s"
@@ -50,6 +58,11 @@ class DirectMigrator:
         processed = 0
 
         for info in entries:
+            # Nueva comprobación de cancelación
+            if self.cancel_event and self.cancel_event.is_set():
+                self.logger.info("Migración cancelada por usuario")
+                return
+
             fid = info['id']
             name = info['name']
 
@@ -68,7 +81,6 @@ class DirectMigrator:
                 continue
 
             try:
-                # PERFILADO DESCARGA
                 t0 = time.perf_counter()
                 data, ext_name = self.google.download_file(info)
                 t1 = time.perf_counter()
@@ -81,7 +93,6 @@ class DirectMigrator:
                 total_bytes = data.tell()
                 data.seek(0)
 
-                # PERFILADO SUBIDA
                 t2 = time.perf_counter()
                 self.one.upload(
                     file_data=data,
@@ -95,7 +106,6 @@ class DirectMigrator:
                 t3 = time.perf_counter()
                 self.logger.info(f"Subida   {name}: {t3-t2:.2f}s")
 
-                # Guardar progreso
                 self.progress.setdefault('migrated_files', set()).add(fid)
                 save_progress(PROGRESS_FILE, self.progress)
 

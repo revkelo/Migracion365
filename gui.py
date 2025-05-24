@@ -1,10 +1,10 @@
 import os
 import threading
-import time
 import customtkinter as ctk
 import tkinter.messagebox as mb
 from PIL import Image, ImageTk
-from migrator import DirectMigrator
+from migrator import DirectMigrator, MigrationCancelled
+
 
 class MigrationApp(ctk.CTk):
     WINDOW_SIZE = "800x250"
@@ -23,6 +23,9 @@ class MigrationApp(ctk.CTk):
         super().__init__()
         self.title("Migrador365")
 
+        # Evento para cancelación de migración
+        self._cancel_event = threading.Event()
+
         # Atributo para guardar el último tamaño (MB) reportado
         self._last_size_mb = 0.0
 
@@ -38,12 +41,10 @@ class MigrationApp(ctk.CTk):
         self.resizable(False, False)
         self.configure(fg_color=self.COLORS['background'])
 
-        self.google_icon   = self._load_icon(os.path.join("gui", "assets", "googledrive.png"))
+        self.google_icon = self._load_icon(os.path.join("gui", "assets", "googledrive.png"))
         self.onedrive_icon = self._load_icon(os.path.join("gui", "assets", "onedrive.png"))
 
-        # Control flags
-        self._cancelled = False
-        self._ui_started = False  # para mostrar botones al obtener tokens
+        self._ui_started = False  # Para mostrar botones al obtener tokens
 
         self._create_widgets()
         self.error_btn.place_forget()  # ocultar al inicio
@@ -111,6 +112,7 @@ class MigrationApp(ctk.CTk):
         )
 
     def start_migration(self):
+        # Reset any existing progress or logs
         prog_file = "migration_progress.json"
         if os.path.exists(prog_file) and os.path.getsize(prog_file) > 0:
             continuar = mb.askyesno(
@@ -132,8 +134,8 @@ class MigrationApp(ctk.CTk):
             except Exception as e:
                 mb.showwarning("Aviso", f"No se pudo limpiar {log_file}:\n{e}")
 
-        self._cancelled = False
-        self._ui_started = False
+        # Clear cancel event
+        self._cancel_event.clear()
         self.start_btn.configure(state="disabled")
         self.status_lbl.configure(text="Iniciando migración...")
         self.size_lbl.configure(text="Tamaño: —")
@@ -144,14 +146,31 @@ class MigrationApp(ctk.CTk):
         thread.start()
 
     def cancel_migration(self):
-        self._cancelled = True
+        # Signal cancellation
+        self._cancel_event.set()
+        # Clean up any temp files
         for f in ["migration_progress.json", "token.pickle"]:
             try:
                 if os.path.exists(f): os.remove(f)
             except Exception:
                 pass
+        # Reset UI immediately
+        self.after(0, self._reset_ui)
+
+    def _reset_ui(self):
+        try:
+            self.progress.stop()
+        except Exception:
+            pass
+
+        self.progress.configure(mode="determinate")
+        self.progress.set(0)
+
+        self.cancel_btn.grid_remove()
+        self.start_btn.configure(state="normal")
+
         self.status_lbl.configure(text="Cancelado")
-        self.cancel_btn.configure(state="disabled")
+        self.size_lbl.configure(text="Tamaño: —")
 
     def open_error_log(self):
         log = DirectMigrator.ERROR_LOG
@@ -162,18 +181,23 @@ class MigrationApp(ctk.CTk):
                 mb.showinfo("Registro de errores", f"Abrir: {log}")
 
     def _run_thread(self):
-        migrator = DirectMigrator(onedrive_folder="")
+        migrator = DirectMigrator(
+            onedrive_folder="",
+            cancel_event=self._cancel_event
+        )
 
         def on_global(proc, total, name):
-            if self._cancelled: return
+            if self._cancel_event.is_set():
+                return
             if not self._ui_started:
-                self.cancel_btn.grid()
+                self.after(0, self.cancel_btn.grid)
                 self._ui_started = True
             pct = proc / total
             self.after(0, lambda: self._update_global(pct, name))
 
         def on_file(sent, total_bytes, name):
-            if self._cancelled: return
+            if self._cancel_event.is_set():
+                raise MigrationCancelled()
             pctf = sent / total_bytes
             size_mb = total_bytes / (1024 * 1024)
             self._last_size_mb = size_mb
@@ -181,12 +205,20 @@ class MigrationApp(ctk.CTk):
             text = f"Subiendo '{name}': {pctf*100:.0f}%"
             self.after(0, lambda: self.status_lbl.configure(text=text))
 
-        migrator.migrate(
-            skip_existing=True,
-            progress_callback=on_global,
-            file_progress_callback=on_file
-        )
-        self.after(0, self._on_complete)
+        try:
+            migrator.migrate(
+                skip_existing=True,
+                progress_callback=on_global,
+                file_progress_callback=on_file
+            )
+        except MigrationCancelled:
+            # Stop processing and reset UI
+            self.after(0, self._reset_ui)
+            return
+
+        # Tras finalizar, restablecemos UI
+        if not self._cancel_event.is_set():
+            self.after(0, self._on_complete)
 
     def _update_global(self, pct, name):
         if self.progress.cget('mode') == 'indeterminate':
@@ -210,4 +242,3 @@ class MigrationApp(ctk.CTk):
 
     def run(self):
         self.mainloop()
-
