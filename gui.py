@@ -5,7 +5,6 @@ import tkinter.messagebox as mb
 from PIL import Image, ImageTk
 from migrator import DirectMigrator, MigrationCancelled
 
-
 class MigrationApp(ctk.CTk):
     WINDOW_SIZE = "800x250"
     BUTTON_SIZE = (150, 50)
@@ -29,6 +28,9 @@ class MigrationApp(ctk.CTk):
         # Atributo para guardar el último tamaño (MB) reportado
         self._last_size_mb = 0.0
 
+        # Flag para mostrar el botón Cancelar una vez por corrida
+        self._ui_started = False
+
         ctk.set_appearance_mode("light")
         ico_path = os.path.join("gui", "assets", "icono.ico")
         if os.path.exists(ico_path):
@@ -43,8 +45,6 @@ class MigrationApp(ctk.CTk):
 
         self.google_icon = self._load_icon(os.path.join("gui", "assets", "googledrive.png"))
         self.onedrive_icon = self._load_icon(os.path.join("gui", "assets", "onedrive.png"))
-
-        self._ui_started = False  # Para mostrar botones al obtener tokens
 
         self._create_widgets()
         self.error_btn.place_forget()  # ocultar al inicio
@@ -112,7 +112,11 @@ class MigrationApp(ctk.CTk):
         )
 
     def start_migration(self):
-        # Reset any existing progress or logs
+        # Reiniciar estado de la UI para esta nueva corrida
+        self._ui_started = False
+        self.cancel_btn.grid_remove()
+
+        # Verificar progreso previo
         prog_file = "migration_progress.json"
         if os.path.exists(prog_file) and os.path.getsize(prog_file) > 0:
             continuar = mb.askyesno(
@@ -126,6 +130,7 @@ class MigrationApp(ctk.CTk):
                 except Exception as e:
                     mb.showwarning("Aviso", f"No se pudo reiniciar {prog_file}:\n{e}")
 
+        # Limpiar log de errores
         log_file = DirectMigrator.ERROR_LOG
         if os.path.exists(log_file):
             try:
@@ -146,15 +151,15 @@ class MigrationApp(ctk.CTk):
         thread.start()
 
     def cancel_migration(self):
-        # Signal cancellation
+        # Señalizar cancelación
         self._cancel_event.set()
-        # Clean up any temp files
+        # Limpiar archivos temporales
         for f in ["migration_progress.json", "token.pickle"]:
             try:
                 if os.path.exists(f): os.remove(f)
             except Exception:
                 pass
-        # Reset UI immediately
+        # Reset UI inmediatamente
         self.after(0, self._reset_ui)
 
     def _reset_ui(self):
@@ -171,6 +176,9 @@ class MigrationApp(ctk.CTk):
 
         self.status_lbl.configure(text="Cancelado")
         self.size_lbl.configure(text="Tamaño: —")
+
+        # Permitir que en la próxima migración vuelva a mostrarse Cancelar
+        self._ui_started = False
 
     def open_error_log(self):
         log = DirectMigrator.ERROR_LOG
@@ -212,11 +220,9 @@ class MigrationApp(ctk.CTk):
                 file_progress_callback=on_file
             )
         except MigrationCancelled:
-            # Stop processing and reset UI
             self.after(0, self._reset_ui)
             return
 
-        # Tras finalizar, restablecemos UI
         if not self._cancel_event.is_set():
             self.after(0, self._on_complete)
 
