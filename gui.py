@@ -122,6 +122,35 @@ class MigrationApp(ctk.CTk):
         )
 
     def start_migration(self):
+        # —————— COMPROBAR PROGRESO ANTERIOR ——————
+        prog_file = "migration_progress.json"
+        if os.path.exists(prog_file) and os.path.getsize(prog_file) > 0:
+            # Preguntar al usuario
+            continuar = mb.askyesno(
+                "Progreso detectado",
+                "Se encontró un progreso de migración previo.\n"
+                "¿Deseas reanudar donde lo dejaste?"
+            )
+            if not continuar:
+                # Si elige empezar de cero, truncamos el JSON
+                try:
+                    with open(prog_file, 'w', encoding='utf-8'):
+                        pass
+                except Exception as e:
+                    mb.showwarning("Aviso", f"No se pudo reiniciar {prog_file}:\n{e}")
+        # ——————————————————————————————————————
+
+        # —————— LIMPIAR LOG DE ERRORES ——————
+        log_file = DirectMigrator.ERROR_LOG
+        if os.path.exists(log_file):
+            try:
+                with open(log_file, 'w', encoding='utf-8'):
+                    pass
+            except Exception as e:
+                mb.showwarning("Aviso", f"No se pudo limpiar {log_file}:\n{e}")
+        # ————————————————————————————————
+
+        # Iniciar estado interno y UI
         self._paused = False
         self._cancelled = False
         self._ui_started = False
@@ -133,6 +162,7 @@ class MigrationApp(ctk.CTk):
         self._is_indeterminate = True
         self._start_pulse()
 
+        # Lanzar hilo de migración
         thread = threading.Thread(target=self._run_thread, daemon=True)
         thread.start()
 
