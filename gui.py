@@ -42,9 +42,6 @@ class MigrationApp(ctk.CTk):
         self.onedrive_icon = self._load_icon(os.path.join("gui", "assets", "onedrive.png"))
 
         # Control flags
-        self._is_indeterminate = False
-        self._pulsing = False
-        self._paused = False
         self._cancelled = False
         self._ui_started = False  # para mostrar botones al obtener tokens
 
@@ -80,20 +77,12 @@ class MigrationApp(ctk.CTk):
         )
         self.start_btn.grid(row=0, column=0, padx=5)
 
-        self.pause_btn = ctk.CTkButton(
-            btn_frame, text="Pausar",
-            fg_color=self.COLORS['primary_light'], hover_color=self.COLORS['primary_hover'],
-            command=self.pause_migration, width=self.BUTTON_SIZE[0], height=self.BUTTON_SIZE[1]
-        )
-        self.pause_btn.grid(row=0, column=1, padx=5)
-        self.pause_btn.grid_remove()
-
         self.cancel_btn = ctk.CTkButton(
             btn_frame, text="Cancelar",
             fg_color='#D70000', hover_color='#BE0000',
             command=self.cancel_migration, width=self.BUTTON_SIZE[0], height=self.BUTTON_SIZE[1]
         )
-        self.cancel_btn.grid(row=0, column=2, padx=5)
+        self.cancel_btn.grid(row=0, column=1, padx=5)
         self.cancel_btn.grid_remove()
 
         frame = ctk.CTkFrame(self, fg_color=self.COLORS['background'])
@@ -122,25 +111,19 @@ class MigrationApp(ctk.CTk):
         )
 
     def start_migration(self):
-        # —————— COMPROBAR PROGRESO ANTERIOR ——————
         prog_file = "migration_progress.json"
         if os.path.exists(prog_file) and os.path.getsize(prog_file) > 0:
-            # Preguntar al usuario
             continuar = mb.askyesno(
                 "Progreso detectado",
-                "Se encontró un progreso de migración previo.\n"
-                "¿Deseas reanudar donde lo dejaste?"
+                "Se encontró un progreso de migración previo.\n¿Deseas reanudar donde lo dejaste?"
             )
             if not continuar:
-                # Si elige empezar de cero, truncamos el JSON
                 try:
                     with open(prog_file, 'w', encoding='utf-8'):
                         pass
                 except Exception as e:
                     mb.showwarning("Aviso", f"No se pudo reiniciar {prog_file}:\n{e}")
-        # ——————————————————————————————————————
 
-        # —————— LIMPIAR LOG DE ERRORES ——————
         log_file = DirectMigrator.ERROR_LOG
         if os.path.exists(log_file):
             try:
@@ -148,10 +131,7 @@ class MigrationApp(ctk.CTk):
                     pass
             except Exception as e:
                 mb.showwarning("Aviso", f"No se pudo limpiar {log_file}:\n{e}")
-        # ————————————————————————————————
 
-        # Iniciar estado interno y UI
-        self._paused = False
         self._cancelled = False
         self._ui_started = False
         self.start_btn.configure(state="disabled")
@@ -159,22 +139,9 @@ class MigrationApp(ctk.CTk):
         self.size_lbl.configure(text="Tamaño: —")
         self.progress.configure(mode="indeterminate")
         self.progress.start()
-        self._is_indeterminate = True
-        self._start_pulse()
 
-        # Lanzar hilo de migración
         thread = threading.Thread(target=self._run_thread, daemon=True)
         thread.start()
-
-    def pause_migration(self):
-        if not self._paused:
-            self._paused = True
-            self.pause_btn.configure(text="Reanudar")
-            self.status_lbl.configure(text="Pausado")
-        else:
-            self._paused = False
-            self.pause_btn.configure(text="Pausar")
-            self.status_lbl.configure(text="Reanudando...")
 
     def cancel_migration(self):
         self._cancelled = True
@@ -184,7 +151,6 @@ class MigrationApp(ctk.CTk):
             except Exception:
                 pass
         self.status_lbl.configure(text="Cancelado")
-        self.pause_btn.configure(state="disabled")
         self.cancel_btn.configure(state="disabled")
 
     def open_error_log(self):
@@ -195,42 +161,22 @@ class MigrationApp(ctk.CTk):
             except Exception:
                 mb.showinfo("Registro de errores", f"Abrir: {log}")
 
-    def _start_pulse(self):
-        self._pulsing = True
-        self.after(0, self._pulse)
-
-    def _pulse(self):
-        if not self._pulsing or self._paused:
-            return
-        curr = self.progress.cget('progress_color')
-        nxt = self.COLORS['primary_light'] if curr == self.COLORS['primary'] else self.COLORS['primary']
-        self.progress.configure(progress_color=nxt)
-        self.after(300, self._pulse)
-
     def _run_thread(self):
         migrator = DirectMigrator(onedrive_folder="")
 
         def on_global(proc, total, name):
             if self._cancelled: return
-            while self._paused:
-                time.sleep(0.1)
             if not self._ui_started:
-                self.pause_btn.grid()
                 self.cancel_btn.grid()
                 self._ui_started = True
             pct = proc / total
-            # Actualizar barra y texto global
             self.after(0, lambda: self._update_global(pct, name))
 
         def on_file(sent, total_bytes, name):
             if self._cancelled: return
-            while self._paused:
-                time.sleep(0.1)
             pctf = sent / total_bytes
             size_mb = total_bytes / (1024 * 1024)
-            # Guardar el último tamaño
             self._last_size_mb = size_mb
-            # Mostrar tamaño y estado de subida
             self.after(0, lambda: self.size_lbl.configure(text=f"Tamaño: {size_mb:.2f} MB"))
             text = f"Subiendo '{name}': {pctf*100:.0f}%"
             self.after(0, lambda: self.status_lbl.configure(text=text))
@@ -243,30 +189,18 @@ class MigrationApp(ctk.CTk):
         self.after(0, self._on_complete)
 
     def _update_global(self, pct, name):
-        if self._is_indeterminate:
+        if self.progress.cget('mode') == 'indeterminate':
             self.progress.stop()
             self.progress.configure(mode="determinate")
-            self._is_indeterminate = False
-        # Solo actualizamos el tamaño si ya tenemos un valor válido
         if self._last_size_mb > 0:
             self.size_lbl.configure(text=f"Tamaño: {self._last_size_mb:.2f} MB")
         self.progress.set(pct)
-        # Texto de estado global
         self.status_lbl.configure(text=f"Migrando: {name} ({pct*100:.0f}%)")
 
-        
-
-
-    def _stop_pulse(self):
-        self._pulsing = False
-        self.progress.configure(progress_color=self.COLORS['primary'])
-
     def _on_complete(self):
-        if self._is_indeterminate:
+        if self.progress.cget('mode') == 'indeterminate':
             self.progress.stop()
-        self._stop_pulse()
         self.progress.set(1)
-        self.pause_btn.grid_remove()
         self.cancel_btn.grid_remove()
         log = DirectMigrator.ERROR_LOG
         if os.path.exists(log) and os.path.getsize(log) > 0:
@@ -276,3 +210,4 @@ class MigrationApp(ctk.CTk):
 
     def run(self):
         self.mainloop()
+
