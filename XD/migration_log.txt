@@ -1,0 +1,16 @@
+2025-05-23 23:58:44,954 - INFO - Iniciando migración directa Google Drive → OneDrive
+2025-05-23 23:58:44,955 - INFO - 🔁 Eliminado token.pickle para forzar reautenticación
+2025-05-23 23:58:50,186 - INFO - Servicios de Google Drive configurados
+2025-05-23 23:58:50,187 - INFO - Obteniendo token de OneDrive...
+2025-05-23 23:58:55,323 - INFO - Token de OneDrive obtenido
+2025-05-23 23:58:55,323 - INFO - Analizando estructura de Google Drive...
+2025-05-23 23:58:56,080 - INFO - Encontrados 2 carpetas y 9 archivos
+2025-05-23 23:59:00,123 - INFO -  Migrado: Prueba 1/Formulario que cree yo desde mi cuenta
+2025-05-23 23:59:01,588 - INFO -  Migrado: /Prueba formulario
+2025-05-23 23:59:03,987 - INFO -  Migrado: Prueba 1/0872331055df7a5b8a9c932ccd82e22b.jpg
+2025-05-23 23:59:06,837 - INFO -  Migrado: Prueba 1/dos
+2025-05-23 23:59:11,417 - INFO -  Migrado: Prueba 2/Migracion
+2025-05-23 23:59:13,641 - INFO -  Migrado: Prueba 2/docker.png
+2025-05-23 23:59:17,087 - INFO -  Migrado: /TOGAF Version 9.2 Preliminary.pdf
+2025-05-23 23:59:28,356 - INFO -  Migrado: /20250305_212404.mp4
+2025-05-23 23:59:32,858 - INFO -  Migrado: /Crocodile_Clips_v3.5.rar
