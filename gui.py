@@ -6,13 +6,13 @@ import os
 from migrator import DirectMigrator
 
 class MigrationApp(ctk.CTk):
-    WINDOW_SIZE = "800x200"
+    WINDOW_SIZE = "800x300"
     BUTTON_SIZE = (150, 50)
     ICON_SIZE = (64, 64)
     COLORS = {
         'primary': '#0078D7',
         'primary_hover': '#106EBE',
-        'primary_light': '#4898E7',  # color más claro para pulso
+        'primary_light': '#4898E7',
         'background': 'white',
         'text': '#333333',
         'progress_bg': '#E5E5E5'
@@ -21,29 +21,21 @@ class MigrationApp(ctk.CTk):
     def __init__(self):
         super().__init__()
         ctk.set_appearance_mode("light")
-        if os.path.exists("./Gui/icono.ico"):
-            self.iconbitmap("./Gui/icono.ico")
-        self.title("Migración Directa")
         self.geometry(self.WINDOW_SIZE)
-        self.resizable(False, False)
         self.eval('tk::PlaceWindow %s center' % self._w)
+        self.resizable(False, False)
         self.configure(fg_color=self.COLORS['background'])
 
-        # Cargar íconos laterales
         self.google_icon = ctk.CTkImage(Image.open("./Gui/googledrive.png"), size=self.ICON_SIZE)
         self.onedrive_icon = ctk.CTkImage(Image.open("./Gui/onedrive.png"), size=self.ICON_SIZE)
-
-        # Flags para animación
         self._is_indeterminate = False
         self._pulsing = False
 
         self._create_widgets()
 
     def _create_widgets(self):
-        # Botón iniciar
         self.start_btn = ctk.CTkButton(
-            self,
-            text="Iniciar Migración",
+            self, text="Iniciar Migración",
             fg_color=self.COLORS['primary'],
             hover_color=self.COLORS['primary_hover'],
             command=self.start_migration,
@@ -52,47 +44,24 @@ class MigrationApp(ctk.CTk):
         )
         self.start_btn.pack(pady=10)
 
-        # Frame para íconos y barra de progreso
-        content_frame = ctk.CTkFrame(self, fg_color=self.COLORS['background'])
-        content_frame.pack(pady=10, padx=20, fill='x')
-        content_frame.grid_columnconfigure(1, weight=1)
+        frame = ctk.CTkFrame(self, fg_color=self.COLORS['background'])
+        frame.pack(pady=10, padx=20, fill='x')
+        frame.grid_columnconfigure(1, weight=1)
 
-        # Icono Google Drive
-        ctk.CTkLabel(
-            content_frame,
-            image=self.google_icon,
-            text="",
-            fg_color=self.COLORS['background']
-        ).grid(row=0, column=0, padx=10)
-
-        # Barra de progreso
+        ctk.CTkLabel(frame, image=self.google_icon, text="").grid(row=0, column=0, padx=10)
         self.progress = ctk.CTkProgressBar(
-            content_frame,
-            width=400,
+            frame, width=400,
             fg_color=self.COLORS['progress_bg'],
             progress_color=self.COLORS['primary']
         )
         self.progress.set(0)
         self.progress.grid(row=0, column=1, padx=10, sticky='ew')
+        ctk.CTkLabel(frame, image=self.onedrive_icon, text="").grid(row=0, column=2, padx=10)
 
-        # Icono OneDrive
-        ctk.CTkLabel(
-            content_frame,
-            image=self.onedrive_icon,
-            text="",
-            fg_color=self.COLORS['background']
-        ).grid(row=0, column=2, padx=10)
-
-        # Etiqueta de estado
-        self.status_lbl = ctk.CTkLabel(
-            self,
-            text="Esperando...",
-            text_color=self.COLORS['text']
-        )
+        self.status_lbl = ctk.CTkLabel(self, text="Esperando...", text_color=self.COLORS['text'])
         self.status_lbl.pack(pady=5)
 
     def start_migration(self):
-        # Deshabilitar botón y activar modo indeterminado con pulso
         self.start_btn.configure(state="disabled")
         self.status_lbl.configure(text="Iniciando migración...")
         self.progress.configure(mode="indeterminate")
@@ -100,8 +69,7 @@ class MigrationApp(ctk.CTk):
         self._is_indeterminate = True
         self._start_pulse()
 
-        # Ejecutar migración en hilo
-        thread = threading.Thread(target=self._run_migration_thread, daemon=True)
+        thread = threading.Thread(target=self._run_thread, daemon=True)
         thread.start()
 
     def _start_pulse(self):
@@ -109,45 +77,46 @@ class MigrationApp(ctk.CTk):
         self.after(0, self._pulse)
 
     def _pulse(self):
-        if not self._pulsing:
-            return
-        # Alternar entre color primario y primario claro
-        current = self.progress.cget('progress_color')
-        new_color = self.COLORS['primary_light'] if current == self.COLORS['primary'] else self.COLORS['primary']
-        self.progress.configure(progress_color=new_color)
+        if not self._pulsing: return
+        curr = self.progress.cget('progress_color')
+        nxt = self.COLORS['primary_light'] if curr == self.COLORS['primary'] else self.COLORS['primary']
+        self.progress.configure(progress_color=nxt)
         self.after(300, self._pulse)
 
-    def _run_migration_thread(self):
+    def _run_thread(self):
         migrator = DirectMigrator(onedrive_folder="")
-
-        def on_progress(processed, total, filename):
-            pct = processed / total
-            self.after(0, lambda: self._update_ui(pct, filename))
-
-        migrator.migrate(skip_existing=True, progress_callback=on_progress)
+        def on_global(proc, total, name):
+            pct = proc/total
+            self.after(0, lambda: self._update_global(pct, name))
+        def on_file(sent, total_bytes, name):
+            pctf = sent/total_bytes
+            self.after(0, lambda:
+                self.status_lbl.configure(text=f"Subiendo {name}: {pctf*100:.0f}% del archivo")
+            )
+        migrator.migrate(
+            skip_existing=True,
+            progress_callback=on_global,
+            file_progress_callback=on_file
+        )
         self.after(0, self._on_complete)
 
-    def _update_ui(self, pct, filename):
-        # En primer update, pasar a modo determinado
+    def _update_global(self, pct, name):
         if self._is_indeterminate:
             self.progress.stop()
             self.progress.configure(mode="determinate")
             self._is_indeterminate = False
         self.progress.set(pct)
-        self.status_lbl.configure(text=f"Migrando: {filename} ({pct*100:.0f}%)")
+        self.status_lbl.configure(text=f"Migrando: {name} ({pct*100:.0f}%)")
 
     def _stop_pulse(self):
         self._pulsing = False
-        # Restaurar color original
         self.progress.configure(progress_color=self.COLORS['primary'])
 
     def _on_complete(self):
-        # Detener animaciones y mostrar completo
         if self._is_indeterminate:
             self.progress.stop()
         self._stop_pulse()
         self.progress.set(1)
-        self.status_lbl.configure(text="Migración completada")
         mb.showinfo("Migración", "Todos los archivos se han transferido con éxito.")
         self.start_btn.configure(state="normal")
 
