@@ -1,12 +1,11 @@
 import threading
 import customtkinter as ctk
 import tkinter.messagebox as mb
-from PIL import Image
-import os
+from PIL import Image, ImageTk
 from migrator import DirectMigrator
 
 class MigrationApp(ctk.CTk):
-    WINDOW_SIZE = "800x300"
+    WINDOW_SIZE = "800x200"
     BUTTON_SIZE = (150, 50)
     ICON_SIZE = (64, 64)
     COLORS = {
@@ -20,6 +19,10 @@ class MigrationApp(ctk.CTk):
 
     def __init__(self):
         super().__init__()
+        self.title("Migrador365")
+        # Ícono de la ventana (mantener referencia)
+        self.icon_img = ImageTk.PhotoImage(Image.open("./Gui/onedrive.png"))
+        
         ctk.set_appearance_mode("light")
         self.geometry(self.WINDOW_SIZE)
         self.eval('tk::PlaceWindow %s center' % self._w)
@@ -58,7 +61,7 @@ class MigrationApp(ctk.CTk):
         self.progress.grid(row=0, column=1, padx=10, sticky='ew')
         ctk.CTkLabel(frame, image=self.onedrive_icon, text="").grid(row=0, column=2, padx=10)
 
-        self.status_lbl = ctk.CTkLabel(self, text="Esperando...", text_color=self.COLORS['text'])
+        self.status_lbl = ctk.CTkLabel(self, text="Oprime el boton para iniciar la migracion", text_color=self.COLORS['text'])
         self.status_lbl.pack(pady=5)
 
     def start_migration(self):

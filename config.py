@@ -7,13 +7,13 @@ ONEDRIVE_CLIENT_ID   = "d8227c52-3dde-4198-81a8-60f1347357ab"
 ONEDRIVE_AUTHORITY   = "https://login.microsoftonline.com/common"
 ONEDRIVE_SCOPES      = ["Files.ReadWrite.All"]
 
-CHUNK_SIZE           = 10 * 1024 * 1024  # 10MB
-LARGE_FILE_THRESHOLD = 4  * 1024 * 1024  # 4MB
-MAX_RETRIES          = 3
-RETRY_DELAY          = 2  # segundos
+CHUNK_SIZE = 60 * 1024 * 1024  # 60 MiB
+LARGE_FILE_THRESHOLD = 5 * 1024 * 1024  # por debajo de eso sigue single PUT
 
-LOG_FILE      = 'migration_log.txt'
 PROGRESS_FILE = 'migration_progress.json'
+# Nombre del fichero de log
+LOG_FILE = "migration.log"
+
 
 GOOGLE_EXPORT_FORMATS = {
     'application/vnd.google-apps.document': {
