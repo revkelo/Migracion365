@@ -21,23 +21,47 @@ class MigrationApp(ctk.CTk):
     def __init__(self):
         super().__init__()
         self.title("Migrador365")
-    
+
         ctk.set_appearance_mode("light")
-        if os.path.exists("./gui/assets/icono.ico"):
-            self.iconbitmap("./gui/assets/icono.ico")
+        ico_path = os.path.join("gui", "assets", "icono.ico")
+        if os.path.exists(ico_path):
+            try:
+                self.iconbitmap(ico_path)
+            except Exception:
+                pass
+
         self.geometry(self.WINDOW_SIZE)
-        self.eval('tk::PlaceWindow %s center' % self._w)
         self.resizable(False, False)
         self.configure(fg_color=self.COLORS['background'])
 
-        self.google_icon = ctk.CTkImage(Image.open("./gui/assets/googledrive.png"), size=self.ICON_SIZE)
-        self.onedrive_icon = ctk.CTkImage(Image.open("./gui/assets/onedrive.png"), size=self.ICON_SIZE)
+        self.google_icon   = self._load_icon(os.path.join("gui", "assets", "googledrive.png"))
+        self.onedrive_icon = self._load_icon(os.path.join("gui", "assets", "onedrive.png"))
         self._is_indeterminate = False
         self._pulsing = False
 
         self._create_widgets()
+        # Centramos al final, tras construir todo
+        self.after(0, self._center_window)
+
+    def _center_window(self):
+        width, height = map(int, self.WINDOW_SIZE.split('x'))
+        sw = self.winfo_screenwidth()
+        sh = self.winfo_screenheight()
+        x = (sw - width) // 2
+        y = (sh - height) // 2
+        self.geometry(f"{width}x{height}+{x}+{y}")
+
+    def _load_icon(self, path):
+        try:
+            img = Image.open(path)
+            return ctk.CTkImage(img, size=self.ICON_SIZE)
+        except (FileNotFoundError, IOError) as e:
+            mb.showerror("Error de Recursos", f"No se encontró la imagen:\n{path}\n\n{e}")
+            blank = Image.new("RGBA", self.ICON_SIZE, (255,255,255,0))
+            return ctk.CTkImage(blank, size=self.ICON_SIZE)
 
     def _create_widgets(self):
+        # Botón de inicio
         self.start_btn = ctk.CTkButton(
             self, text="Iniciar Migración",
             fg_color=self.COLORS['primary'],
@@ -48,6 +72,7 @@ class MigrationApp(ctk.CTk):
         )
         self.start_btn.pack(pady=10)
 
+        # Frame con iconos y barra
         frame = ctk.CTkFrame(self, fg_color=self.COLORS['background'])
         frame.pack(pady=10, padx=20, fill='x')
         frame.grid_columnconfigure(1, weight=1)
@@ -62,7 +87,12 @@ class MigrationApp(ctk.CTk):
         self.progress.grid(row=0, column=1, padx=10, sticky='ew')
         ctk.CTkLabel(frame, image=self.onedrive_icon, text="").grid(row=0, column=2, padx=10)
 
-        self.status_lbl = ctk.CTkLabel(self, text="Oprime el boton para iniciar la migracion", text_color=self.COLORS['text'])
+        # Etiqueta de estado
+        self.status_lbl = ctk.CTkLabel(
+            self,
+            text="Oprime el botón para iniciar la migración",
+            text_color=self.COLORS['text']
+        )
         self.status_lbl.pack(pady=5)
 
     def start_migration(self):
@@ -81,7 +111,8 @@ class MigrationApp(ctk.CTk):
         self.after(0, self._pulse)
 
     def _pulse(self):
-        if not self._pulsing: return
+        if not self._pulsing:
+            return
         curr = self.progress.cget('progress_color')
         nxt = self.COLORS['primary_light'] if curr == self.COLORS['primary'] else self.COLORS['primary']
         self.progress.configure(progress_color=nxt)
@@ -90,13 +121,14 @@ class MigrationApp(ctk.CTk):
     def _run_thread(self):
         migrator = DirectMigrator(onedrive_folder="")
         def on_global(proc, total, name):
-            pct = proc/total
+            pct = proc / total
             self.after(0, lambda: self._update_global(pct, name))
         def on_file(sent, total_bytes, name):
-            pctf = sent/total_bytes
-            self.after(0, lambda:
-                self.status_lbl.configure(text=f"Subiendo {name}: {pctf*100:.0f}% del archivo")
-            )
+            pctf = sent / total_bytes
+            size_mb = total_bytes / (1024 * 1024)
+            # Mostramos nombre del archivo, porcentaje y tamaño total en MB
+            text = f"Subiendo '{name}': {pctf*100:.0f}% de {size_mb:.1f} MB"
+            self.after(0, lambda: self.status_lbl.configure(text=text))
         migrator.migrate(
             skip_existing=True,
             progress_callback=on_global,
@@ -126,3 +158,8 @@ class MigrationApp(ctk.CTk):
 
     def run(self):
         self.mainloop()
+
+
+if __name__ == "__main__":
+    app = MigrationApp()
+    app.run()

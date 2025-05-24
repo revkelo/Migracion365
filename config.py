@@ -7,7 +7,7 @@ ONEDRIVE_CLIENT_ID   = "d8227c52-3dde-4198-81a8-60f1347357ab"
 ONEDRIVE_AUTHORITY   = "https://login.microsoftonline.com/common"
 ONEDRIVE_SCOPES      = ["Files.ReadWrite.All"]
 
-CHUNK_SIZE = 60 * 1024 * 1024  # 60 MiB
+CHUNK_SIZE = 100 * 1024 * 1024  # 60 MiB
 LARGE_FILE_THRESHOLD = 5 * 1024 * 1024  # por debajo de eso sigue single PUT
 
 PROGRESS_FILE = 'migration_progress.json'
