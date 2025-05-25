@@ -1,11 +1,24 @@
-2025-05-24 18:15:50,679 — INFO — Token de OneDrive obtenido
-2025-05-24 18:15:50,680 — INFO — Iniciando migración...
-2025-05-24 18:15:52,130 — INFO — Descarga Prueba de permisos: 0.63s
-2025-05-24 18:15:53,791 — INFO — Subida   Prueba de permisos: 1.66s
-2025-05-24 18:15:54,794 — INFO — Descarga Evaluación Diagnostica: 1.00s
-2025-05-24 18:15:55,624 — INFO — Subida   Evaluación Diagnostica: 0.83s
-2025-05-24 18:15:56,265 — INFO — Descarga Formulario que cree yo desde mi cuenta: 0.64s
-2025-05-24 18:15:57,134 — INFO — Subida   Formulario que cree yo desde mi cuenta: 0.87s
-2025-05-24 18:15:57,540 — INFO — Descarga Prueba formulario: 0.40s
-2025-05-24 18:15:58,900 — INFO — Subida   Prueba formulario: 1.36s
-2025-05-24 18:15:58,901 — INFO — Migración cancelada por usuario
+2025-05-25 01:05:33,654 — INFO — Token de OneDrive obtenido
+2025-05-25 01:05:33,657 — INFO — Iniciando migración...
+2025-05-25 01:05:35,282 — INFO — Descarga Prueba de permisos: 0.68s
+2025-05-25 01:05:36,045 — INFO — Subida   Prueba de permisos: 0.76s
+2025-05-25 01:05:37,021 — INFO — Descarga Evaluación Diagnostica: 0.97s
+2025-05-25 01:05:38,143 — INFO — Subida   Evaluación Diagnostica: 1.12s
+2025-05-25 01:05:38,605 — INFO — Descarga Formulario que cree yo desde mi cuenta: 0.46s
+2025-05-25 01:05:39,647 — INFO — Subida   Formulario que cree yo desde mi cuenta: 1.04s
+2025-05-25 01:05:40,227 — INFO — Descarga Prueba formulario: 0.50s
+2025-05-25 01:05:41,500 — INFO — Subida   Prueba formulario: 1.27s
+2025-05-25 01:05:42,055 — INFO — Descarga 0872331055df7a5b8a9c932ccd82e22b.jpg: 0.55s
+2025-05-25 01:05:43,106 — INFO — Subida   0872331055df7a5b8a9c932ccd82e22b.jpg: 1.05s
+2025-05-25 01:05:43,740 — INFO — Descarga dos: 0.63s
+2025-05-25 01:05:44,637 — INFO — Subida   dos: 0.90s
+2025-05-25 01:05:45,729 — INFO — Descarga Migracion: 1.09s
+2025-05-25 01:05:48,301 — INFO — Subida   Migracion: 2.57s
+2025-05-25 01:05:48,797 — INFO — Descarga docker.png: 0.49s
+2025-05-25 01:05:49,868 — INFO — Subida   docker.png: 1.07s
+2025-05-25 01:05:51,066 — INFO — Descarga TOGAF Version 9.2 Preliminary.pdf: 1.20s
+2025-05-25 01:05:52,595 — INFO — Subida   TOGAF Version 9.2 Preliminary.pdf: 1.53s
+2025-05-25 01:05:58,656 — INFO — Descarga 20250305_212404.mp4: 6.06s
+2025-05-25 01:06:02,924 — INFO — Subida   20250305_212404.mp4: 4.27s
+2025-05-25 01:06:15,486 — INFO — Descarga Crocodile_Clips_v3.5.rar: 12.56s
+2025-05-25 01:06:16,877 — INFO — Subida   Crocodile_Clips_v3.5.rar: 1.39s

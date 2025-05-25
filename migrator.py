@@ -3,8 +3,8 @@ import logging
 from typing import Callable, Optional
 from config import PROGRESS_FILE, LOG_FILE
 from utils import load_progress, save_progress
-from services.google_service import GoogleService
-from services.onedrive_service import OneDriveService
+from google_service import GoogleService
+from onedrive_service import OneDriveService
 import threading
 
 
