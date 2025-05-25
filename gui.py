@@ -1,12 +1,14 @@
+import os
 import threading
 import customtkinter as ctk
 import tkinter.messagebox as mb
-from PIL import Image
-import os
-from migrator import DirectMigrator
+from PIL import Image, ImageTk
+from migrator import DirectMigrator, MigrationCancelled
+from archivo import ErrorApp
+
 
 class MigrationApp(ctk.CTk):
-    WINDOW_SIZE = "800x300"
+    WINDOW_SIZE = "800x250"
     BUTTON_SIZE = (150, 50)
     ICON_SIZE = (64, 64)
     COLORS = {
@@ -20,105 +22,294 @@ class MigrationApp(ctk.CTk):
 
     def __init__(self):
         super().__init__()
+        self.error_win = None
+        self.title("Migrador365")
+
+        # Evento para cancelación de migración
+        self._cancel_event = threading.Event()
+
+        # Atributo para guardar el último tamaño (MB) reportado
+        self._last_size_mb = 0.0
+
+        # Flag para mostrar el botón Cancelar una vez por corrida
+        self._ui_started = False
+
         ctk.set_appearance_mode("light")
+        ico_path = os.path.join("gui", "assets", "icono.ico")
+        if os.path.exists(ico_path):
+            try:
+                self.iconbitmap(ico_path)
+            except Exception:
+                pass
+
         self.geometry(self.WINDOW_SIZE)
-        self.eval('tk::PlaceWindow %s center' % self._w)
         self.resizable(False, False)
         self.configure(fg_color=self.COLORS['background'])
 
-        self.google_icon = ctk.CTkImage(Image.open("./Gui/googledrive.png"), size=self.ICON_SIZE)
-        self.onedrive_icon = ctk.CTkImage(Image.open("./Gui/onedrive.png"), size=self.ICON_SIZE)
-        self._is_indeterminate = False
-        self._pulsing = False
+        self.google_icon = self._load_icon(os.path.join("gui", "assets", "googledrive.png"))
+        self.onedrive_icon = self._load_icon(os.path.join("gui", "assets", "onedrive.png"))
 
         self._create_widgets()
+        self.after(0, self._center_window)
+
+    def _center_window(self):
+        width, height = map(int, self.WINDOW_SIZE.split('x'))
+        sw = self.winfo_screenwidth()
+        sh = self.winfo_screenheight()
+        x = (sw - width) // 2
+        y = (sh - height) // 2
+        self.geometry(f"{width}x{height}+{x}+{y}")
+
+    def _load_icon(self, path):
+        try:
+            img = Image.open(path)
+            return ctk.CTkImage(img, size=self.ICON_SIZE)
+        except Exception as e:
+            mb.showerror("Error de Recursos", f"No se encontró la imagen:\n{path}\n\n{e}")
+            blank = Image.new("RGBA", self.ICON_SIZE, (255,255,255,0))
+            return ctk.CTkImage(blank, size=self.ICON_SIZE)
 
     def _create_widgets(self):
+        btn_frame = ctk.CTkFrame(self, fg_color=self.COLORS['background'])
+        btn_frame.pack(pady=10)
+
         self.start_btn = ctk.CTkButton(
-            self, text="Iniciar Migración",
-            fg_color=self.COLORS['primary'],
-            hover_color=self.COLORS['primary_hover'],
-            command=self.start_migration,
-            width=self.BUTTON_SIZE[0],
-            height=self.BUTTON_SIZE[1]
+            btn_frame, text="Iniciar",
+            fg_color=self.COLORS['primary'], hover_color=self.COLORS['primary_hover'],
+            command=self.start_migration, width=self.BUTTON_SIZE[0], height=self.BUTTON_SIZE[1]
         )
-        self.start_btn.pack(pady=10)
+        self.start_btn.grid(row=0, column=0, padx=5)
+
+        self.cancel_btn = ctk.CTkButton(
+            btn_frame, text="Cancelar",
+            fg_color="#636363", hover_color="#030303",
+            command=self.cancel_migration, width=self.BUTTON_SIZE[0], height=self.BUTTON_SIZE[1]
+        )
+        self.cancel_btn.grid(row=0, column=1, padx=5)
+        self.cancel_btn.grid_remove()
 
         frame = ctk.CTkFrame(self, fg_color=self.COLORS['background'])
-        frame.pack(pady=10, padx=20, fill='x')
+        frame.pack(pady=5, padx=20, fill='x')
         frame.grid_columnconfigure(1, weight=1)
 
         ctk.CTkLabel(frame, image=self.google_icon, text="").grid(row=0, column=0, padx=10)
         self.progress = ctk.CTkProgressBar(
             frame, width=400,
-            fg_color=self.COLORS['progress_bg'],
-            progress_color=self.COLORS['primary']
+            fg_color=self.COLORS['progress_bg'], progress_color=self.COLORS['primary']
         )
         self.progress.set(0)
         self.progress.grid(row=0, column=1, padx=10, sticky='ew')
         ctk.CTkLabel(frame, image=self.onedrive_icon, text="").grid(row=0, column=2, padx=10)
 
-        self.status_lbl = ctk.CTkLabel(self, text="Esperando...", text_color=self.COLORS['text'])
-        self.status_lbl.pack(pady=5)
+        self.status_lbl = ctk.CTkLabel(self, text="Oprime iniciar...", text_color=self.COLORS['text'])
+        self.status_lbl.pack(pady=(5,0))
+
+        self.size_lbl = ctk.CTkLabel(self, text="Tamaño: —", text_color=self.COLORS['text'])
+        self.size_lbl.pack(pady=(0,5))
+
+        self.error_btn = ctk.CTkButton(
+            self, text="Ver archivos problemáticos",
+            fg_color=self.COLORS['primary_light'], hover_color=self.COLORS['primary_hover'],
+            command=self.open_error_log, width=160, height=30
+            
+        )
+        self.error_btn.place_forget()
 
     def start_migration(self):
+        # Cerrar ventana de errores si está abierta
+        if self.error_win and self.error_win.winfo_exists():
+            self.error_win.destroy()
+            self.error_win = None
+
+        self._ui_started = False
+        self.cancel_btn.grid_remove()
+        self.error_btn.place_forget()
+
+        # Limpiar archivos temporales
+        for f in ["token.pickle"]:
+            try:
+                if os.path.exists(f):
+                    os.remove(f)
+            except Exception:
+                pass
+
+        # Verificar progreso previo
+        prog_file = "migration_progress.json"
+        if os.path.exists(prog_file) and os.path.getsize(prog_file) > 0:
+            continuar = mb.askyesno(
+                "Progreso detectado",
+                "Se encontró un progreso de migración previo.\n¿Deseas reanudar donde lo dejaste?"
+            )
+            if not continuar:
+                try:
+                    with open(prog_file, 'w', encoding='utf-8'):
+                        pass
+                except Exception as e:
+                    mb.showwarning("Aviso", f"No se pudo reiniciar {prog_file}:\n{e}")
+
+              # Limpiar log de errores
+        log_file = DirectMigrator.ERROR_LOG
+        if os.path.exists(log_file):
+            try:
+                with open(log_file, 'w', encoding='utf-8'):
+                    pass
+            except Exception as e:
+                mb.showwarning("Aviso", f"No se pudo limpiar {log_file}:\n{e}")
+
+        # Clear cancel event
+        self._cancel_event.clear()
+
+        # Configurar UI para migración
         self.start_btn.configure(state="disabled")
         self.status_lbl.configure(text="Iniciando migración...")
+        self.size_lbl.configure(text="Tamaño: —")
+
+        # Modo indeterminado + pulso
         self.progress.configure(mode="indeterminate")
         self.progress.start()
         self._is_indeterminate = True
         self._start_pulse()
 
+        # Lanzar hilo de migración
         thread = threading.Thread(target=self._run_thread, daemon=True)
         thread.start()
 
+
+    def cancel_migration(self):
+        # Señalizar cancelación
+        self._cancel_event.set()
+        # Limpiar archivos temporales
+        for f in ["migration_progress.json", "token.pickle"]:
+            try:
+                if os.path.exists(f): os.remove(f)
+            except Exception:
+                pass
+        # Reset UI inmediatamente
+        self.after(0, self._reset_ui)
+
+    def _reset_ui(self):
+        try:
+            self.progress.stop()
+        except Exception:
+            pass
+
+        self.progress.configure(mode="determinate")
+        self.progress.set(0)
+
+        self.cancel_btn.grid_remove()
+        self.start_btn.configure(state="normal")
+
+        self.status_lbl.configure(text="Cancelado")
+        self.size_lbl.configure(text="Tamaño: —")
+
+        # Permitir que en la próxima migración vuelva a mostrarse Cancelar
+        self._ui_started = False
+
+    def open_error_log(self):
+        log = DirectMigrator.ERROR_LOG
+        
+        if not os.path.exists(log) or os.path.getsize(log) == 0:
+            mb.showinfo("Sin archivos problemáticos", "No hay archivos problemáticos.")
+            return
+        else:
+            # Si ya había una ventana, no hacemos otra; else creamos y guardamos
+            if not self.error_win or not self.error_win.winfo_exists():
+                self.error_win = ErrorApp()
+            else:
+                # Traer al frente si ya está abierta
+                self.error_win.lift()
+            return
+        
+        
+
+
+    def _run_thread(self):
+        migrator = DirectMigrator(
+            onedrive_folder="",
+            cancel_event=self._cancel_event
+        )
+
+        def on_global(proc, total, name):
+            if self._cancel_event.is_set():
+                return
+            if not self._ui_started:
+                self.after(0, self.cancel_btn.grid)
+                self._ui_started = True
+            pct = proc / total
+            self.after(0, lambda: self._update_global(pct, name))
+
+        def on_file(sent, total_bytes, name):
+            if self._cancel_event.is_set():
+                raise MigrationCancelled()
+            pctf = sent / total_bytes
+            size_mb = total_bytes / (1024 * 1024)
+            self._last_size_mb = size_mb
+            self.after(0, lambda: self.size_lbl.configure(text=f"Tamaño: {size_mb:.2f} MB"))
+            text = f"Subiendo '{name}': {pctf*100:.0f}%"
+            self.after(0, lambda: self.status_lbl.configure(text=text))
+
+        try:
+            migrator.migrate(
+                skip_existing=True,
+                progress_callback=on_global,
+                file_progress_callback=on_file
+            )
+        except MigrationCancelled:
+            self.after(0, self._reset_ui)
+            return
+
+        if not self._cancel_event.is_set():
+            self.after(0, self._on_complete)
+
+    def _update_global(self, pct, name):
+        if self.progress.cget('mode') == 'indeterminate':
+            self.progress.stop()
+            self.progress.configure(mode="determinate")
+        if self._last_size_mb > 0:
+            self.size_lbl.configure(text=f"Tamaño: {self._last_size_mb:.2f} MB")
+        self.progress.set(pct)
+        self.status_lbl.configure(text=f"Migrando: {name} ({pct*100:.0f}%)")
+
+    def _on_complete(self):
+        if self.progress.cget('mode') == 'indeterminate':
+            self.progress.stop()
+        self.progress.set(1)
+        self.cancel_btn.grid_remove()
+        self._stop_pulse()
+        self.status_lbl.configure(text="Oprime iniciar...")
+        self.size_lbl.configure(text="Tamaño: —")
+        log = DirectMigrator.ERROR_LOG
+        if os.path.exists(log) and os.path.getsize(log) > 0:
+            self.error_btn.place(relx=1.0, rely=1.0, x=-10, y=-10, anchor='se')
+        mb.showinfo("Migración", "Transferencia finalizada.")
+        self.start_btn.configure(state="normal")
+        
+
     def _start_pulse(self):
+        # Activa la bandera y lanza el ciclo de pulso
         self._pulsing = True
         self.after(0, self._pulse)
 
     def _pulse(self):
-        if not self._pulsing: return
-        curr = self.progress.cget('progress_color')
-        nxt = self.COLORS['primary_light'] if curr == self.COLORS['primary'] else self.COLORS['primary']
-        self.progress.configure(progress_color=nxt)
+        # Si la animación está desactivada, salimos
+        if not self._pulsing:
+            return
+        # Leemos el color actual y lo alternamos
+        current = self.progress.cget('progress_color')
+        new_color = (
+            self.COLORS['primary_light']
+            if current == self.COLORS['primary']
+            else self.COLORS['primary']
+        )
+        self.progress.configure(progress_color=new_color)
+        # Volver a llamar en 300 ms
         self.after(300, self._pulse)
 
-    def _run_thread(self):
-        migrator = DirectMigrator(onedrive_folder="")
-        def on_global(proc, total, name):
-            pct = proc/total
-            self.after(0, lambda: self._update_global(pct, name))
-        def on_file(sent, total_bytes, name):
-            pctf = sent/total_bytes
-            self.after(0, lambda:
-                self.status_lbl.configure(text=f"Subiendo {name}: {pctf*100:.0f}% del archivo")
-            )
-        migrator.migrate(
-            skip_existing=True,
-            progress_callback=on_global,
-            file_progress_callback=on_file
-        )
-        self.after(0, self._on_complete)
-
-    def _update_global(self, pct, name):
-        if self._is_indeterminate:
-            self.progress.stop()
-            self.progress.configure(mode="determinate")
-            self._is_indeterminate = False
-        self.progress.set(pct)
-        self.status_lbl.configure(text=f"Migrando: {name} ({pct*100:.0f}%)")
-
     def _stop_pulse(self):
+        # Detiene el pulso y restaura color original
         self._pulsing = False
         self.progress.configure(progress_color=self.COLORS['primary'])
 
-    def _on_complete(self):
-        if self._is_indeterminate:
-            self.progress.stop()
-        self._stop_pulse()
-        self.progress.set(1)
-        mb.showinfo("Migración", "Todos los archivos se han transferido con éxito.")
-        self.start_btn.configure(state="normal")
 
     def run(self):
         self.mainloop()
