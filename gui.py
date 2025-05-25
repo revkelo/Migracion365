@@ -1,3 +1,13 @@
+# ---------------------------------------------------------------
+# Archivo de la Aplicación de Migración GUI
+# Autor: Kevin Gonzalez
+# Descripción:
+#   Contiene la clase MigrationApp que define la interfaz gráfica
+#   de usuario para Migrador365. Gestiona la inicialización,
+#   eventos de inicio y cancelación de la migración, actualiza
+#   el progreso y muestra archivos problemáticos.
+# ---------------------------------------------------------------
+
 import os
 import threading
 import customtkinter as ctk
@@ -6,7 +16,19 @@ from PIL import Image, ImageTk
 from migrator import DirectMigrator, MigrationCancelled
 from archivo import ErrorApp
 
+"""
+    Clase principal de la GUI para la aplicación Migrador365.
 
+    Atributos:
+        WINDOW_SIZE (str): Tamaño de la ventana en formato "<ancho>x<alto>".
+        BUTTON_SIZE (tuple): Dimensiones de los botones (ancho, alto).
+        ICON_SIZE (tuple): Tamaño de los iconos (ancho, alto).
+        COLORS (dict): Colores usados en la interfaz.
+        error_win (ErrorApp | None): Ventana de errores, si está abierta.
+        _cancel_event (threading.Event): Evento para señalizar cancelación.
+        _last_size_mb (float): Último tamaño de archivo calculado en MB.
+        _ui_started (bool): Controla si ya se mostró el botón "Cancelar".
+"""
 class MigrationApp(ctk.CTk):
     WINDOW_SIZE = "800x250"
     BUTTON_SIZE = (150, 50)
@@ -19,19 +41,21 @@ class MigrationApp(ctk.CTk):
         'text': '#333333',
         'progress_bg': '#E5E5E5'
     }
+    
+    """
+        Inicializa la ventana principal, carga iconos y crea widgets.
 
+        - Configura la apariencia, tamaño y posición de la ventana.
+        - Carga iconos de Google Drive y OneDrive.
+        - Construye los widgets de control (botones, labels, progressbar).
+    """
     def __init__(self):
         super().__init__()
         self.error_win = None
         self.title("Migrador365")
 
-        # Evento para cancelación de migración
         self._cancel_event = threading.Event()
-
-        # Atributo para guardar el último tamaño (MB) reportado
         self._last_size_mb = 0.0
-
-        # Flag para mostrar el botón Cancelar una vez por corrida
         self._ui_started = False
 
         ctk.set_appearance_mode("light")
@@ -51,7 +75,10 @@ class MigrationApp(ctk.CTk):
 
         self._create_widgets()
         self.after(0, self._center_window)
-
+        
+    """
+        Centra la ventana en la pantalla según WINDOW_SIZE.
+    """
     def _center_window(self):
         width, height = map(int, self.WINDOW_SIZE.split('x'))
         sw = self.winfo_screenwidth()
@@ -60,6 +87,16 @@ class MigrationApp(ctk.CTk):
         y = (sh - height) // 2
         self.geometry(f"{width}x{height}+{x}+{y}")
 
+
+    """
+        Intenta cargar una imagen y convertirla en CTkImage.
+
+        Args:
+            path (str): Ruta al archivo de imagen.
+
+        Returns:
+            CTkImage: Imagen cargada o un placeholder transparente.
+    """
     def _load_icon(self, path):
         try:
             img = Image.open(path)
@@ -69,6 +106,13 @@ class MigrationApp(ctk.CTk):
             blank = Image.new("RGBA", self.ICON_SIZE, (255,255,255,0))
             return ctk.CTkImage(blank, size=self.ICON_SIZE)
 
+
+    """
+        Construye y posiciona todos los widgets de la interfaz.
+
+        - Botones: Iniciar, Cancelar, Ver archivos problemáticos.
+        - Barra de progreso y labels de estado y tamaño.
+    """
     def _create_widgets(self):
         btn_frame = ctk.CTkFrame(self, fg_color=self.COLORS['background'])
         btn_frame.pack(pady=10)
@@ -115,8 +159,17 @@ class MigrationApp(ctk.CTk):
         )
         self.error_btn.place_forget()
 
+
+    """
+        Inicia el proceso de migración en un hilo separado.
+
+        - Cierra ventana de errores si está abierta.
+        - Limpia archivos temporales y registros previos.
+        - Configura la UI (botones, estado, progreso).
+        - Inicia animación de pulso y lanza el hilo de migración.
+    """
     def start_migration(self):
-        # Cerrar ventana de errores si está abierta
+
         if self.error_win and self.error_win.winfo_exists():
             self.error_win.destroy()
             self.error_win = None
@@ -125,15 +178,13 @@ class MigrationApp(ctk.CTk):
         self.cancel_btn.grid_remove()
         self.error_btn.place_forget()
 
-        # Limpiar archivos temporales
         for f in ["token.pickle"]:
             try:
                 if os.path.exists(f):
                     os.remove(f)
             except Exception:
                 pass
-
-        # Verificar progreso previo
+            
         prog_file = "migration_progress.json"
         if os.path.exists(prog_file) and os.path.getsize(prog_file) > 0:
             continuar = mb.askyesno(
@@ -146,8 +197,7 @@ class MigrationApp(ctk.CTk):
                         pass
                 except Exception as e:
                     mb.showwarning("Aviso", f"No se pudo reiniciar {prog_file}:\n{e}")
-
-              # Limpiar log de errores
+                    
         log_file = DirectMigrator.ERROR_LOG
         if os.path.exists(log_file):
             try:
@@ -156,37 +206,45 @@ class MigrationApp(ctk.CTk):
             except Exception as e:
                 mb.showwarning("Aviso", f"No se pudo limpiar {log_file}:\n{e}")
 
-        # Clear cancel event
-        self._cancel_event.clear()
 
-        # Configurar UI para migración
+        self._cancel_event.clear()
         self.start_btn.configure(state="disabled")
         self.status_lbl.configure(text="Iniciando migración...")
         self.size_lbl.configure(text="Tamaño: —")
 
-        # Modo indeterminado + pulso
         self.progress.configure(mode="indeterminate")
         self.progress.start()
         self._is_indeterminate = True
         self._start_pulse()
-
-        # Lanzar hilo de migración
         thread = threading.Thread(target=self._run_thread, daemon=True)
         thread.start()
 
+    """
+        Señaliza la cancelación y restablece la UI.
 
+        - Establece el evento de cancelación.
+        - Elimina archivos de progreso y token.
+        - Llama a _reset_ui para actualizar la interfaz.
+    """
     def cancel_migration(self):
-        # Señalizar cancelación
+
         self._cancel_event.set()
-        # Limpiar archivos temporales
         for f in ["migration_progress.json", "token.pickle"]:
             try:
                 if os.path.exists(f): os.remove(f)
             except Exception:
                 pass
-        # Reset UI inmediatamente
         self.after(0, self._reset_ui)
 
+
+    """
+        Restablece los widgets de UI tras cancelación.
+
+        - Detiene animación y configura progressbar a determinate.
+        - Oculta botón Cancelar y habilita Iniciar.
+        - Actualiza labels de estado y tamaño.
+        - Resetea flag _ui_started.
+    """
     def _reset_ui(self):
         try:
             self.progress.stop()
@@ -202,9 +260,15 @@ class MigrationApp(ctk.CTk):
         self.status_lbl.configure(text="Cancelado")
         self.size_lbl.configure(text="Tamaño: —")
 
-        # Permitir que en la próxima migración vuelva a mostrarse Cancelar
         self._ui_started = False
 
+
+    """
+        Abre la ventana de errores si existe un registro.
+
+        - Muestra mensaje si no hay errores.
+        - Si ya está abierta, la eleva; si no, crea una nueva.
+    """
     def open_error_log(self):
         log = DirectMigrator.ERROR_LOG
         
@@ -212,17 +276,22 @@ class MigrationApp(ctk.CTk):
             mb.showinfo("Sin archivos problemáticos", "No hay archivos problemáticos.")
             return
         else:
-            # Si ya había una ventana, no hacemos otra; else creamos y guardamos
+
             if not self.error_win or not self.error_win.winfo_exists():
                 self.error_win = ErrorApp()
             else:
-                # Traer al frente si ya está abierta
+
                 self.error_win.lift()
             return
         
         
 
+    """
+        Hilo de ejecución que llama a DirectMigrator.migrate().
 
+        - Define callbacks on_global y on_file para actualizar la UI.
+        - Gestiona excepciones de cancelación y finalización.
+    """
     def _run_thread(self):
         migrator = DirectMigrator(
             onedrive_folder="",
@@ -261,6 +330,14 @@ class MigrationApp(ctk.CTk):
         if not self._cancel_event.is_set():
             self.after(0, self._on_complete)
 
+
+    """
+        Actualiza la progressbar y el label global.
+
+        Args:
+            pct (float): Porcentaje completado (0.0 a 1.0).
+            name (str): Nombre del archivo o lote actual.
+    """
     def _update_global(self, pct, name):
         if self.progress.cget('mode') == 'indeterminate':
             self.progress.stop()
@@ -270,6 +347,13 @@ class MigrationApp(ctk.CTk):
         self.progress.set(pct)
         self.status_lbl.configure(text=f"Migrando: {name} ({pct*100:.0f}%)")
 
+
+    """
+        Lógica a ejecutar cuando la migración finaliza correctamente.
+
+        - Detiene animación, muestra botón de errores si existen.
+        - Muestra un mensaje de información y habilita el botón Iniciar.
+    """
     def _on_complete(self):
         if self.progress.cget('mode') == 'indeterminate':
             self.progress.stop()
@@ -281,20 +365,24 @@ class MigrationApp(ctk.CTk):
         log = DirectMigrator.ERROR_LOG
         if os.path.exists(log) and os.path.getsize(log) > 0:
             self.error_btn.place(relx=1.0, rely=1.0, x=-10, y=-10, anchor='se')
-        mb.showinfo("Migración", "Transferencia finalizada.")
+        mb.showinfo("Migración", "Transferencia finalizada. Revisa tu OneDrive.")
         self.start_btn.configure(state="normal")
         
-
+    """
+        Inicia la animación pulsante en la progressbar.
+    """
     def _start_pulse(self):
-        # Activa la bandera y lanza el ciclo de pulso
         self._pulsing = True
         self.after(0, self._pulse)
 
+
+    """
+        Alterna el color de la progressbar cada 300 ms mientras _pulsing sea True.
+    """
     def _pulse(self):
-        # Si la animación está desactivada, salimos
+
         if not self._pulsing:
             return
-        # Leemos el color actual y lo alternamos
         current = self.progress.cget('progress_color')
         new_color = (
             self.COLORS['primary_light']
@@ -302,14 +390,17 @@ class MigrationApp(ctk.CTk):
             else self.COLORS['primary']
         )
         self.progress.configure(progress_color=new_color)
-        # Volver a llamar en 300 ms
         self.after(300, self._pulse)
 
+    """
+        Detiene la animación de pulso y restaura el color original.
+    """
     def _stop_pulse(self):
-        # Detiene el pulso y restaura color original
         self._pulsing = False
         self.progress.configure(progress_color=self.COLORS['primary'])
 
-
+    """
+        Inicia el loop principal de la aplicación.
+    """
     def run(self):
         self.mainloop()
