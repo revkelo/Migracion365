@@ -1,3 +1,14 @@
+# ---------------------------------------------------------------
+# Migrador Directo de Google Drive a OneDrive
+# Autor: Kevin Gonzalez
+# Descripción:
+#   Orquesta el proceso de migración de archivos desde Google Drive hacia OneDrive.
+#   - Gestiona autenticación y servicios de Google y OneDrive.
+#   - Descarga, exporta y sube archivos, preservando estructura de carpetas.
+#   - Control de progreso y capacidad de reanudar.
+#   - Registro de errores y soporte para cancelar la operación.
+# ---------------------------------------------------------------
+
 import time
 import logging
 from typing import Callable, Optional
@@ -7,12 +18,20 @@ from google_service import GoogleService
 from onedrive_service import OneDriveService
 import threading
 
-
+"""
+    Señaliza que el usuario ha cancelado el proceso de migración.
+"""
 class MigrationCancelled(Exception):
-    """Excepción interna para indicar que la migración fue cancelada"""
     pass
 
 
+"""
+    Clase principal encargada de transferir archivos de Google Drive a OneDrive.
+
+    - `migrate`: recorre archivos, gestiona descarga y subida.
+    - Controla progreso mediante JSON y permite reanudar.
+    - Registra tiempos y errores en log.
+"""
 class DirectMigrator:
     ERROR_LOG = 'migration_errors.txt'
 
@@ -21,19 +40,12 @@ class DirectMigrator:
         onedrive_folder: str = '',
         cancel_event: Optional[threading.Event] = None
     ):
-        # Carpeta base en OneDrive
+        
         self.onedrive_folder = onedrive_folder.strip('/')
-        # Flag de cancelación
         self.cancel_event = cancel_event
-
-        # Servicios
         self.google = GoogleService()
         self.one = OneDriveService()
-
-        # Progreso cargado
         self.progress = load_progress(PROGRESS_FILE)
-
-        # Logger
         self.logger = logging.getLogger('DirectMigrator')
         self.logger.setLevel(logging.INFO)
         if not self.logger.handlers:
@@ -48,6 +60,15 @@ class DirectMigrator:
             ))
             self.logger.addHandler(fh)
 
+
+    """
+        Ejecuta la migración de archivos.
+
+        - Itera sobre todos los archivos de Drive.
+        - Opción de omitir los ya migrados.
+        - Reporta progreso global y por archivo.
+        - Captura y guarda errores en un log.
+    """
     def migrate(
         self,
         skip_existing: bool = True,
@@ -61,7 +82,7 @@ class DirectMigrator:
         processed = 0
 
         for info in entries:
-            # Comprobación de cancelación
+          
             if self.cancel_event and self.cancel_event.is_set():
                 self.logger.info("Migración cancelada por usuario")
                 return
@@ -77,9 +98,9 @@ class DirectMigrator:
                 self.google.get_folder_path(parents[0], folders)
                 if parents else []
             )
-            # Construir ruta remota antes de la descarga
+    
             folder_path = '/'.join(path_parts)
-            # Para registro de errores, usamos la ruta original + nombre de archivo
+
             drive_path = f"{folder_path}/{name}" if folder_path else name
 
             if skip_existing and fid in self.progress.get('migrated_files', set()):
@@ -87,7 +108,7 @@ class DirectMigrator:
                 continue
 
             try:
-                # Descarga
+   
                 t0 = time.perf_counter()
                 data, ext_name = self.google.download_file(info)
                 t1 = time.perf_counter()
@@ -96,15 +117,14 @@ class DirectMigrator:
                 if data is None:
                     raise RuntimeError("Descarga fallida")
 
-                # Preparar datos para subida
+ 
                 data.seek(0, 2)
                 total_bytes = data.tell()
                 data.seek(0)
 
-                # Ruta final en OneDrive
                 remote_path = f"{self.onedrive_folder}/{folder_path}/{ext_name}".lstrip('/')
 
-                # Subida
+
                 t2 = time.perf_counter()
                 self.one.upload(
                     file_data=data,
@@ -118,7 +138,7 @@ class DirectMigrator:
                 t3 = time.perf_counter()
                 self.logger.info(f"Subida   {name}: {t3-t2:.2f}s")
 
-                # Guardar progreso
+
                 self.progress.setdefault('migrated_files', set()).add(fid)
                 save_progress(PROGRESS_FILE, self.progress)
 
@@ -130,6 +150,12 @@ class DirectMigrator:
         if progress_callback:
             progress_callback(total_files, total_files, '')
 
+    """
+        Añade una entrada en el archivo de errores con timestamp y ruta.
+
+        - `drive_path`: ruta relativa del archivo en Drive.
+        - `message`: descripción del error.
+    """
     def _log_error(self, drive_path: str, message: str) -> None:
         entry = f"{time.strftime('%Y-%m-%d %H:%M:%S')} - {drive_path} - {message}\n"
         try:
