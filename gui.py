@@ -115,13 +115,15 @@ class MigrationApp(ctk.CTk):
         # Reiniciar estado de la UI para esta nueva corrida
         self._ui_started = False
         self.cancel_btn.grid_remove()
+
         # Limpiar archivos temporales
         for f in ["token.pickle"]:
             try:
-                if os.path.exists(f): os.remove(f)
+                if os.path.exists(f):
+                    os.remove(f)
             except Exception:
                 pass
-        # Reset UI inmediatamente
+
         # Verificar progreso previo
         prog_file = "migration_progress.json"
         if os.path.exists(prog_file) and os.path.getsize(prog_file) > 0:
@@ -145,24 +147,24 @@ class MigrationApp(ctk.CTk):
             except Exception as e:
                 mb.showwarning("Aviso", f"No se pudo limpiar {log_file}:\n{e}")
 
-        # Eliminar token de autenticación
-        token_file = "token.pickle"
-        if os.path.exists(token_file):
-            try:
-                os.remove(token_file)
-            except Exception as e:
-                mb.showwarning("Aviso", f"No se pudo eliminar {token_file}:\n{e}")
-
         # Clear cancel event
         self._cancel_event.clear()
+
+        # Configurar UI para migración
         self.start_btn.configure(state="disabled")
         self.status_lbl.configure(text="Iniciando migración...")
         self.size_lbl.configure(text="Tamaño: —")
+
+        # Modo indeterminado + pulso
         self.progress.configure(mode="indeterminate")
         self.progress.start()
+        self._is_indeterminate = True
+        self._start_pulse()
 
+        # Lanzar hilo de migración
         thread = threading.Thread(target=self._run_thread, daemon=True)
         thread.start()
+
 
     def cancel_migration(self):
         # Señalizar cancelación
@@ -254,11 +256,41 @@ class MigrationApp(ctk.CTk):
             self.progress.stop()
         self.progress.set(1)
         self.cancel_btn.grid_remove()
+        self._stop_pulse()
+        self.status_lbl.configure(text="Oprime iniciar...")
+        self.size_lbl.configure(text="Tamaño: —")
         log = DirectMigrator.ERROR_LOG
         if os.path.exists(log) and os.path.getsize(log) > 0:
             self.error_btn.place(relx=1.0, rely=1.0, x=-10, y=-10, anchor='se')
         mb.showinfo("Migración", "Transferencia finalizada.")
         self.start_btn.configure(state="normal")
+
+        
+    def _start_pulse(self):
+        # Activa la bandera y lanza el ciclo de pulso
+        self._pulsing = True
+        self.after(0, self._pulse)
+
+    def _pulse(self):
+        # Si la animación está desactivada, salimos
+        if not self._pulsing:
+            return
+        # Leemos el color actual y lo alternamos
+        current = self.progress.cget('progress_color')
+        new_color = (
+            self.COLORS['primary_light']
+            if current == self.COLORS['primary']
+            else self.COLORS['primary']
+        )
+        self.progress.configure(progress_color=new_color)
+        # Volver a llamar en 300 ms
+        self.after(300, self._pulse)
+
+    def _stop_pulse(self):
+        # Detiene el pulso y restaura color original
+        self._pulsing = False
+        self.progress.configure(progress_color=self.COLORS['primary'])
+
 
     def run(self):
         self.mainloop()
