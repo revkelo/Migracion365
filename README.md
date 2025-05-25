@@ -1,7 +1,7 @@
 # 🚀 Migrador365
 
 Aplicación para migrar archivos desde Google Drive hacia OneDrive, preservando la estructura de carpetas y exportando formatos de Google Workspace.
-
+⚠️ No suspendas el equipo durante la migración para evitar errores de red.
 ---
 
 ## 💻 Ejecutable para Windows
