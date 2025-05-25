@@ -1,3 +1,11 @@
+# ---------------------------------------------------------------
+# Servicio Google Drive y Forms
+# Autor: Kevin Gonzalez
+# Descripción:
+#   Gestiona la autenticación usando credenciales cifradas y permite
+#   listar, descargar y exportar archivos de Google Drive y Formularios.
+# ---------------------------------------------------------------
+
 import os
 import io
 import pickle
@@ -14,9 +22,15 @@ from docx import Document
 from config import GOOGLE_SCOPES, GOOGLE_EXPORT_FORMATS
 from utils import sanitize_filename
 
-# —► Tu llave Fernet
 KEY = b"HG5GHGW3o9bMUMWUmz7khGjhELzFUJ9W-52s_ZnIC40="
 
+"""
+Carga el blob cifrado desde archivo.
+
+- Si el script está congelado con PyInstaller, busca en sys._MEIPASS.
+- Lanza FileNotFoundError si no existe.
+- Devuelve los bytes cifrados.
+"""
 
 def _load_encrypted_blob(filename: str = 'credentials.json.enc') -> bytes:
     # Si estamos en un EXE creado con PyInstaller, los datos van a sys._MEIPASS
@@ -30,19 +44,28 @@ def _load_encrypted_blob(filename: str = 'credentials.json.enc') -> bytes:
     with open(path, 'rb') as f:
         return f.read()
 
+"""
+Descifra y carga las credenciales JSON.
 
+- Usa Fernet con la clave KEY para descifrar.
+- Parsea JSON y retorna el dict.
+"""
 def _load_credentials(filename: str = 'credentials.json.enc') -> dict:
     blob = _load_encrypted_blob(filename)
     f = Fernet(KEY)
     plaintext = f.decrypt(blob)
     return json.loads(plaintext)
 
+"""
+    Servicio para interactuar con Google Drive y Google Forms.
 
+    - Autenticación y token almacenado en pickle.
+    - Listado de archivos y carpetas.
+    - Descarga y exportación de documentos, hojas y slides.
+    - Conversión de formularios a Word.
+"""
 class GoogleService:
-    """
-    Servicio para interactuar con Google Drive y Formularios,
-    usando credenciales cifradas con Fernet.
-    """
+
     def __init__(self,
                  encrypted_credentials: str = 'credentials.json.enc',
                  token_path: str = 'token.pickle'):
@@ -53,9 +76,16 @@ class GoogleService:
         self.logger = logging.getLogger(self.__class__.__name__)
         self._setup_services()
 
+    """
+    Configura credenciales y construye los clientes de API.
+
+    - Carga o refresca token en pickle.
+    - Usa credenciales cifradas si no existe token.
+    - Inicializa client libraries de Drive y Forms.
+    """
     def _setup_services(self):
         creds = None
-        # Carga token anterior si existe
+
         if os.path.exists(self.token_path):
             try:
                 with open(self.token_path, 'rb') as token_file:
@@ -65,13 +95,13 @@ class GoogleService:
                 self.logger.warning("No se pudo cargar el token, se generará uno nuevo")
                 creds = None
 
-        # Refrescar o autenticar de cero
+    
         if not creds or not getattr(creds, 'valid', False):
             if creds and creds.expired and creds.refresh_token:
                 creds.refresh(Request())
                 self.logger.info("Credenciales refrescadas automáticamente")
             else:
-                # Carga credenciales cifradas
+               
                 config = _load_credentials(self.encrypted_credentials)
                 flow = InstalledAppFlow.from_client_config(
                     {'installed': config['installed']},
@@ -79,7 +109,7 @@ class GoogleService:
                 )
                 creds = flow.run_local_server(port=8089)
                 self.logger.info("Autenticación completada con credenciales cifradas")
-            # Guarda el token de acceso
+          
             with open(self.token_path, 'wb') as token_file:
                 pickle.dump(creds, token_file)
                 self.logger.info("Token guardado en %s", self.token_path)
@@ -89,8 +119,14 @@ class GoogleService:
         self.forms = build('forms', 'v1', credentials=creds)
         self.logger.info("APIs de Drive y Forms listas para usarse")
 
+    """
+    Lista todos los archivos y carpetas en Drive.
+
+    - Omite elementos en la papelera.
+    - Retorna dicts de carpetas, archivos y tamaño total.
+    """
     def list_files_and_folders(self):
-        """Lista carpetas, archivos y tamaño total en Drive."""
+
         folders, files = {}, {}
         page_token = None
         total_size = 0
@@ -112,8 +148,15 @@ class GoogleService:
                 break
         return folders, files, total_size
 
+
+    """
+    Reconstruye el path de carpetas dado un parent_id.
+
+    - Usa recursión basada en el dict de carpetas.
+    - Sanitiza nombres para uso en archivos locales.
+    """
     def get_folder_path(self, parent_id: str, folders: dict) -> list:
-        """Reconstruye ruta de carpetas recursivamente."""
+
         path, current = [], parent_id
         while current in folders:
             folder = folders[current]
@@ -121,9 +164,17 @@ class GoogleService:
             parents = folder.get('parents') or []
             current = parents[0] if parents else None
         return list(reversed(path))
+    
+    """
+    Descarga o exporta un archivo según su MIME.
 
+    - Para archivos de Google Apps, exporta a formatos Office.
+    - Para otros, descarga el contenido directamente.
+    - Convierte Formularios a Word.
+    - Devuelve un BytesIO y nombre de fichero.
+    """
     def download_file(self, file_info: dict):
-        """Descarga o exporta un archivo de Drive según su tipo."""
+
         file_id = file_info['id']
         mime = file_info['mimeType']
         name = file_info['name']
@@ -150,9 +201,16 @@ class GoogleService:
         except Exception as e:
             self.logger.error("Error al descargar %s: %s", name, e)
             return None, name
+        
+    """
+    Convierte datos de formulario a un documento Word.
 
+    - Añade título y descripción.
+    - Incluye opciones de elección o marcado de texto.
+    - Guarda en un BytesIO.
+    """
     def _create_word_from_form(self, form_data: dict) -> io.BytesIO:
-        """Convierte un formulario de Google a un documento Word."""
+
         doc = Document()
         info = form_data.get('info', {})
         doc.add_heading(info.get('title', 'Formulario'), level=0)
