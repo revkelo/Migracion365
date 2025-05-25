@@ -22,6 +22,7 @@ class MigrationApp(ctk.CTk):
 
     def __init__(self):
         super().__init__()
+        self.error_win = None
         self.title("Migrador365")
 
         # Evento para cancelación de migración
@@ -49,7 +50,6 @@ class MigrationApp(ctk.CTk):
         self.onedrive_icon = self._load_icon(os.path.join("gui", "assets", "onedrive.png"))
 
         self._create_widgets()
-        self.error_btn.place_forget()  # ocultar al inicio
         self.after(0, self._center_window)
 
     def _center_window(self):
@@ -111,12 +111,19 @@ class MigrationApp(ctk.CTk):
             self, text="Ver archivos problemáticos",
             fg_color=self.COLORS['primary_light'], hover_color=self.COLORS['primary_hover'],
             command=self.open_error_log, width=160, height=30
+            
         )
+        self.error_btn.place_forget()
 
     def start_migration(self):
-        # Reiniciar estado de la UI para esta nueva corrida
+        # Cerrar ventana de errores si está abierta
+        if self.error_win and self.error_win.winfo_exists():
+            self.error_win.destroy()
+            self.error_win = None
+
         self._ui_started = False
         self.cancel_btn.grid_remove()
+        self.error_btn.place_forget()
 
         # Limpiar archivos temporales
         for f in ["token.pickle"]:
@@ -199,7 +206,21 @@ class MigrationApp(ctk.CTk):
         self._ui_started = False
 
     def open_error_log(self):
-        ErrorApp()
+        log = DirectMigrator.ERROR_LOG
+        
+        if not os.path.exists(log) or os.path.getsize(log) == 0:
+            mb.showinfo("Sin archivos problemáticos", "No hay archivos problemáticos.")
+            return
+        else:
+            # Si ya había una ventana, no hacemos otra; else creamos y guardamos
+            if not self.error_win or not self.error_win.winfo_exists():
+                self.error_win = ErrorApp()
+            else:
+                # Traer al frente si ya está abierta
+                self.error_win.lift()
+            return
+        
+        
 
 
     def _run_thread(self):
@@ -259,7 +280,6 @@ class MigrationApp(ctk.CTk):
         self.size_lbl.configure(text="Tamaño: —")
         log = DirectMigrator.ERROR_LOG
         if os.path.exists(log) and os.path.getsize(log) > 0:
-
             self.error_btn.place(relx=1.0, rely=1.0, x=-10, y=-10, anchor='se')
         mb.showinfo("Migración", "Transferencia finalizada.")
         self.start_btn.configure(state="normal")

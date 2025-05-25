@@ -235,3 +235,85 @@
 2025-05-25 14:38:18,339 — INFO — Subida   Crocodile_Clips_v3.5.rar: 1.52s
 2025-05-25 14:38:55,552 — INFO — Token de OneDrive obtenido
 2025-05-25 14:38:55,564 — INFO — Iniciando migración...
+2025-05-25 14:46:30,505 — INFO — Token de OneDrive obtenido
+2025-05-25 14:46:30,507 — INFO — Iniciando migración...
+2025-05-25 14:46:31,998 — INFO — Descarga Prueba de permisos: 0.65s
+2025-05-25 14:46:33,055 — INFO — Subida   Prueba de permisos: 1.06s
+2025-05-25 14:46:34,045 — INFO — Descarga Evaluación Diagnostica: 0.99s
+2025-05-25 14:46:35,081 — INFO — Subida   Evaluación Diagnostica: 1.03s
+2025-05-25 14:46:35,708 — INFO — Descarga Formulario que cree yo desde mi cuenta: 0.63s
+2025-05-25 14:46:36,903 — INFO — Subida   Formulario que cree yo desde mi cuenta: 1.19s
+2025-05-25 14:46:37,305 — INFO — Descarga Prueba formulario: 0.40s
+2025-05-25 14:46:38,521 — INFO — Subida   Prueba formulario: 1.21s
+2025-05-25 14:46:39,226 — INFO — Descarga 0872331055df7a5b8a9c932ccd82e22b.jpg: 0.70s
+2025-05-25 14:46:40,308 — INFO — Subida   0872331055df7a5b8a9c932ccd82e22b.jpg: 1.08s
+2025-05-25 14:46:40,909 — INFO — Descarga dos: 0.60s
+2025-05-25 14:46:42,347 — INFO — Subida   dos: 1.44s
+2025-05-25 14:46:43,422 — INFO — Descarga Migracion: 1.07s
+2025-05-25 14:46:45,063 — INFO — Subida   Migracion: 1.64s
+2025-05-25 14:46:45,547 — INFO — Descarga docker.png: 0.48s
+2025-05-25 14:46:46,705 — INFO — Subida   docker.png: 1.16s
+2025-05-25 14:46:48,171 — INFO — Descarga TOGAF Version 9.2 Preliminary.pdf: 1.46s
+2025-05-25 14:46:49,654 — INFO — Subida   TOGAF Version 9.2 Preliminary.pdf: 1.48s
+2025-05-25 14:46:51,708 — INFO — Descarga 20250305_212404.mp4: 2.05s
+2025-05-25 14:46:57,542 — INFO — Subida   20250305_212404.mp4: 5.83s
+2025-05-25 14:47:13,914 — INFO — Descarga Crocodile_Clips_v3.5.rar: 16.37s
+2025-05-25 14:47:15,235 — INFO — Subida   Crocodile_Clips_v3.5.rar: 1.32s
+2025-05-25 14:53:36,567 — INFO — Token de OneDrive obtenido
+2025-05-25 14:53:36,579 — INFO — Iniciando migración...
+2025-05-25 14:53:57,619 — INFO — Token de OneDrive obtenido
+2025-05-25 14:53:57,620 — INFO — Iniciando migración...
+2025-05-25 14:54:21,405 — INFO — Token de OneDrive obtenido
+2025-05-25 14:54:21,406 — INFO — Iniciando migración...
+2025-05-25 14:59:30,322 — INFO — Token de OneDrive obtenido
+2025-05-25 14:59:30,324 — INFO — Iniciando migración...
+2025-05-25 14:59:50,042 — INFO — Token de OneDrive obtenido
+2025-05-25 14:59:50,043 — INFO — Iniciando migración...
+2025-05-25 14:59:51,650 — INFO — Descarga Prueba de permisos: 0.65s
+2025-05-25 14:59:52,610 — INFO — Subida   Prueba de permisos: 0.96s
+2025-05-25 14:59:53,587 — INFO — Descarga Evaluación Diagnostica: 0.98s
+2025-05-25 14:59:54,718 — INFO — Subida   Evaluación Diagnostica: 1.13s
+2025-05-25 14:59:57,025 — INFO — Descarga Formulario que cree yo desde mi cuenta: 2.30s
+2025-05-25 14:59:58,147 — INFO — Subida   Formulario que cree yo desde mi cuenta: 1.12s
+2025-05-25 14:59:58,579 — INFO — Descarga Prueba formulario: 0.43s
+2025-05-25 14:59:59,650 — INFO — Subida   Prueba formulario: 1.07s
+2025-05-25 15:00:00,357 — INFO — Descarga 0872331055df7a5b8a9c932ccd82e22b.jpg: 0.71s
+2025-05-25 15:00:01,993 — INFO — Subida   0872331055df7a5b8a9c932ccd82e22b.jpg: 1.64s
+2025-05-25 15:00:02,654 — INFO — Descarga dos: 0.66s
+2025-05-25 15:00:03,806 — INFO — Subida   dos: 1.15s
+2025-05-25 15:00:05,009 — INFO — Descarga Migracion: 1.20s
+2025-05-25 15:00:06,480 — INFO — Subida   Migracion: 1.47s
+2025-05-25 15:00:06,951 — INFO — Descarga docker.png: 0.47s
+2025-05-25 15:00:07,971 — INFO — Subida   docker.png: 1.02s
+2025-05-25 15:00:10,397 — INFO — Descarga TOGAF Version 9.2 Preliminary.pdf: 2.42s
+2025-05-25 15:00:11,866 — INFO — Subida   TOGAF Version 9.2 Preliminary.pdf: 1.47s
+2025-05-25 15:00:21,336 — INFO — Descarga 20250305_212404.mp4: 9.47s
+2025-05-25 15:00:30,697 — INFO — Subida   20250305_212404.mp4: 9.36s
+2025-05-25 15:00:44,068 — INFO — Descarga Crocodile_Clips_v3.5.rar: 13.36s
+2025-05-25 15:00:45,950 — INFO — Subida   Crocodile_Clips_v3.5.rar: 1.88s
+2025-05-25 15:01:31,008 — INFO — Token de OneDrive obtenido
+2025-05-25 15:01:31,009 — INFO — Iniciando migración...
+2025-05-25 15:01:32,427 — INFO — Descarga Prueba de permisos: 0.56s
+2025-05-25 15:01:33,279 — INFO — Subida   Prueba de permisos: 0.85s
+2025-05-25 15:01:34,241 — INFO — Descarga Evaluación Diagnostica: 0.96s
+2025-05-25 15:01:35,290 — INFO — Subida   Evaluación Diagnostica: 1.05s
+2025-05-25 15:01:35,999 — INFO — Descarga Formulario que cree yo desde mi cuenta: 0.71s
+2025-05-25 15:01:37,137 — INFO — Subida   Formulario que cree yo desde mi cuenta: 1.14s
+2025-05-25 15:01:37,496 — INFO — Descarga Prueba formulario: 0.36s
+2025-05-25 15:01:38,563 — INFO — Subida   Prueba formulario: 1.07s
+2025-05-25 15:01:39,065 — INFO — Descarga 0872331055df7a5b8a9c932ccd82e22b.jpg: 0.50s
+2025-05-25 15:01:39,981 — INFO — Subida   0872331055df7a5b8a9c932ccd82e22b.jpg: 0.92s
+2025-05-25 15:01:40,508 — INFO — Descarga dos: 0.53s
+2025-05-25 15:01:41,661 — INFO — Subida   dos: 1.15s
+2025-05-25 15:01:42,532 — INFO — Descarga Migracion: 0.87s
+2025-05-25 15:01:44,074 — INFO — Subida   Migracion: 1.54s
+2025-05-25 15:01:44,516 — INFO — Descarga docker.png: 0.44s
+2025-05-25 15:01:45,404 — INFO — Subida   docker.png: 0.89s
+2025-05-25 15:01:48,609 — INFO — Descarga TOGAF Version 9.2 Preliminary.pdf: 3.20s
+2025-05-25 15:01:50,360 — INFO — Subida   TOGAF Version 9.2 Preliminary.pdf: 1.75s
+2025-05-25 15:01:56,651 — INFO — Descarga 20250305_212404.mp4: 6.29s
+2025-05-25 15:02:03,542 — INFO — Subida   20250305_212404.mp4: 6.89s
+2025-05-25 15:02:05,181 — INFO — Descarga Crocodile_Clips_v3.5.rar: 1.64s
+2025-05-25 15:02:06,711 — INFO — Subida   Crocodile_Clips_v3.5.rar: 1.53s
+2025-05-25 15:05:40,072 — INFO — Token de OneDrive obtenido
+2025-05-25 15:05:40,074 — INFO — Iniciando migración...
