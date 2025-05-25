@@ -9,3 +9,12 @@ pip install customtkinter Pillow google-api-python-client google-auth google-aut
 ```
 
 ## Run Main.py
+
+
+pyinstaller \
+  --onefile \
+  --windowed \
+  --name Migracion365 \
+  --add-data "credentials.json.enc;." \
+  --add-data "gui/assets;gui/assets" \
+  main.py

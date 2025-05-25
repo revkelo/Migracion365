@@ -80,7 +80,7 @@ class MigrationApp(ctk.CTk):
 
         self.cancel_btn = ctk.CTkButton(
             btn_frame, text="Cancelar",
-            fg_color='#D70000', hover_color='#BE0000',
+            fg_color="#636363", hover_color="#030303",
             command=self.cancel_migration, width=self.BUTTON_SIZE[0], height=self.BUTTON_SIZE[1]
         )
         self.cancel_btn.grid(row=0, column=1, padx=5)
