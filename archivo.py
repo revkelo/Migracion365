@@ -3,160 +3,103 @@ import customtkinter as ctk
 import tkinter as tk
 from tkinter import ttk, messagebox
 
-class ErrorApp(ctk.CTk):
-    def __init__(self):
-        super().__init__()
-        self.title("Errores de Migración")
-        self.geometry("300x100")
-        self.resizable(False, False)
-        ctk.set_appearance_mode("light")
+class ErrorApp(ctk.CTkToplevel):
+    _instance = None
 
-        self.error_win = None
+    def __new__(cls, master=None):
+        # Si ya hay una instancia abierta, la trae al frente
+        if cls._instance is not None and cls._instance.winfo_exists():
+            cls._instance.lift()
+            return cls._instance
+        cls._instance = super().__new__(cls)
+        return cls._instance
 
-        # Contenedor para el botón y el badge
-        self.btn_container = ctk.CTkFrame(self, fg_color="transparent", width=200, height=40)
-        self.btn_container.pack(expand=True, pady=20)
-        self.btn_container.pack_propagate(False)
+    def __init__(self, master=None):
+        # Evitar re-inicialización en instancias recurrentes
+        if getattr(self, '_initialized', False):
+            return
+        super().__init__(master)
+        self._initialized = True
 
-        # Botón para mostrar errores
-        self.btn = ctk.CTkButton(
-            self.btn_container,
-            text="Mostrar errores",
-            command=self.show_errors,
-            width=200, height=40
-        )
-        self.btn.pack()
-
-        # Ajustamos el fondo del contenedor para que coincida con el del botón,
-        # evitando que se vea el fondo blanco cuando el badge sobresale.
-        btn_bg = self.btn.cget("fg_color")
-        self.btn_container.configure(fg_color=btn_bg)
-
-        # Badge de notificación: solo un círculo rojo
-        self.badge = ctk.CTkFrame(
-            self.btn_container,
-            fg_color="#FF3B30",   # rojo de notificación
-            width=12, height=12,
-            corner_radius=6       # círculo
-        )
-
-        # Comprobar estado del log tras renderizar
-        self.after(100, self.update_badge)
-
-    def center_window(self, win, width, height):
-        """Centra la ventana `win` con tamaño width×height."""
-        sw, sh = win.winfo_screenwidth(), win.winfo_screenheight()
+        self.title("Archivos problemáticos")
+        # Configurar tamaño y centrar
+        width, height = 900, 400
+        ico_path = os.path.join("gui", "assets", "icono.ico")
+        if os.path.exists(ico_path):
+            try:
+                self.iconbitmap(ico_path)
+            except Exception:
+                pass
+        sw, sh = self.winfo_screenwidth(), self.winfo_screenheight()
         x = (sw - width) // 2
         y = (sh - height) // 2
-        win.geometry(f"{width}x{height}+{x}+{y}")
+        self.geometry(f"{width}x{height}+{x}+{y}")
+        self.resizable(True, True)
+        ctk.set_appearance_mode("light")
 
-    def update_badge(self):
-        """
-        Muestra el badge si migration_errors.txt existe y no está vacío;
-        lo oculta en caso contrario.
-        """
-        log_file = "migration_errors.txt"
-        if os.path.exists(log_file) and os.path.getsize(log_file) > 0:
-            # Posiciona el badge de forma relativa dentro del contenedor
-            self.badge.place(relx=0.88, rely=0.10)
-        else:
-            self.badge.place_forget()
+        # Crear y mostrar la tabla de errores
+        self._create_error_table()
 
-    def show_errors(self):
+    def _create_error_table(self):
         log_file = "migration_errors.txt"
-        if not os.path.exists(log_file):
-            messagebox.showinfo("Sin errores", "No se encontró el archivo de errores.")
+        if not os.path.exists(log_file) or os.path.getsize(log_file) == 0:
+            messagebox.showinfo("Sin errores", "No hay errores registrados.")
+            self.destroy()
+            type(self)._instance = None
             return
 
+        # Leer líneas no vacías
         with open(log_file, 'r', encoding='utf-8') as f:
-            lines = [l.strip() for l in f if l.strip()]
+            lines = [line.strip() for line in f if line.strip()]
 
-        if not lines:
-            messagebox.showinfo("Sin errores", "El archivo de errores está vacío.")
-            return
-
-        # Si ya hay ventana abierta, la trae al frente
-        if self.error_win and self.error_win.winfo_exists():
-            self.error_win.lift()
-            self.error_win.focus_force()
-            return
-
-        # Crear ventana de tabla
-        self.error_win = tk.Toplevel(self)
-        self.error_win.title("Registro de Errores")
-        width, height = 900, 400
-        self.center_window(self.error_win, width, height)
-        self.error_win.resizable(True, True)
-
-        # Columnas: #, Fecha/Hora, Archivo, Ruta, Mensaje
+        # Definir columnas
         cols = ("#", "Fecha/Hora", "Archivo", "Ruta", "Mensaje")
-        tree = ttk.Treeview(self.error_win, columns=cols, show='headings')
-        for c in cols:
-            tree.heading(c, text=c)
-            if c == "#":
-                tree.column(c, width=50, anchor="center")
-            elif c == "Fecha/Hora":
-                tree.column(c, width=150, anchor="w")
-            elif c == "Archivo":
-                tree.column(c, width=200, anchor="w")
-            elif c == "Ruta":
-                tree.column(c, width=250, anchor="w")
-            else:  # Mensaje
-                tree.column(c, width=250, anchor="w")
+        tree = ttk.Treeview(self, columns=cols, show='headings')
+        widths = {"#":50, "Fecha/Hora":150, "Archivo":200, "Ruta":250, "Mensaje":250}
+        for col in cols:
+            tree.heading(col, text=col)
+            tree.column(col, width=widths.get(col, 100), anchor='w')
 
-        # Rellenar filas y extraer sólo el nombre de archivo
-        for idx, line in enumerate(lines, 1):
-            fecha, ruta, msg = (line.split(" - ", 2) + ["", "", ""])[:3]
+        # Insertar datos
+        for idx, line in enumerate(lines, start=1):
+            parts = line.split(' - ', 2)
+            fecha = parts[0] if len(parts) > 0 else ''
+            ruta  = parts[1] if len(parts) > 1 else ''
+            msg   = parts[2] if len(parts) > 2 else ''
             archivo = os.path.basename(ruta)
-            tree.insert("", "end", values=(idx, fecha, archivo, ruta, msg))
+            tree.insert('', 'end', values=(idx, fecha, archivo, ruta, msg))
 
         # Scrollbar vertical
-        vsb = ttk.Scrollbar(self.error_win, orient="vertical", command=tree.yview)
+        vsb = ttk.Scrollbar(self, orient='vertical', command=tree.yview)
         tree.configure(yscrollcommand=vsb.set)
-        vsb.pack(side="right", fill="y")
-        tree.pack(expand=True, fill="both", side="left")
+        vsb.pack(side='right', fill='y')
+        tree.pack(expand=True, fill='both', side='left')
 
-        # Funciones para copiar celdas
-        def copy_cell():
-            row = getattr(tree, '_row', None)
-            col = getattr(tree, '_col', None)
-            if not row or not col:
+        # Función para copiar celda seleccionada
+        def copy_cell(event=None):
+            item = tree.selection()
+            if not item:
                 return
-            idx_col = int(col.replace('#','')) - 1
-            col_name = cols[idx_col]
-            valor = tree.set(row, col_name)
+            values = tree.item(item[0], 'values')
+            col = tree.identify_column(event.x) if event else None
+            if col:
+                idx_col = int(col.replace('#','')) - 1
+                val = values[idx_col]
+            else:
+                val = ' '.join(str(v) for v in values)
             self.clipboard_clear()
-            self.clipboard_append(valor)
+            self.clipboard_append(val)
 
-        def on_click(event):
-            if tree.identify_region(event.x, event.y) == "cell":
-                tree._row = tree.identify_row(event.y)
-                tree._col = tree.identify_column(event.x)
+        # Doble clic o menú contextual
+        tree.bind('<Double-1>', lambda e: (copy_cell(e), messagebox.showinfo('Copiado', 'Celda copiada al portapapeles.')))
+        menu = tk.Menu(self, tearoff=0)
+        menu.add_command(label='Copiar celda', command=copy_cell)
+        tree.bind('<Button-3>', lambda e: menu.tk_popup(e.x_root, e.y_root))
 
-        def on_double_click(event):
-            on_click(event)
-            copy_cell()
-            messagebox.showinfo("Copiado", "Celda copiada al portapapeles.")
+        # Al cerrar, destruir y limpiar instancia
+        self.protocol('WM_DELETE_WINDOW', self._on_close)
 
-        tree.bind("<Button-1>", on_click)
-        tree.bind("<Double-1>", on_double_click)
+    def _on_close(self):
+        self.destroy()
+        type(self)._instance = None
 
-        # Menú contextual para copiar
-        context_menu = tk.Menu(self.error_win, tearoff=0)
-        context_menu.add_command(label="Copiar celda", command=copy_cell)
-        def on_right_click(event):
-            if tree.identify_region(event.x, event.y) == "cell":
-                on_click(event)
-                context_menu.tk_popup(event.x_root, event.y_root)
-        tree.bind("<Button-3>", on_right_click)
-
-        # Limpiar referencia al cerrar
-        self.error_win.protocol("WM_DELETE_WINDOW", self._on_error_win_close)
-
-    def _on_error_win_close(self):
-        self.error_win.destroy()
-        self.error_win = None
-
-if __name__ == "__main__":
-    app = ErrorApp()
-    app.mainloop()

@@ -4,6 +4,8 @@ import customtkinter as ctk
 import tkinter.messagebox as mb
 from PIL import Image, ImageTk
 from migrator import DirectMigrator, MigrationCancelled
+from archivo import ErrorApp
+
 
 class MigrationApp(ctk.CTk):
     WINDOW_SIZE = "800x250"
@@ -106,9 +108,9 @@ class MigrationApp(ctk.CTk):
         self.size_lbl.pack(pady=(0,5))
 
         self.error_btn = ctk.CTkButton(
-            self, text="Ver registro",
+            self, text="Ver archivos problemáticos",
             fg_color=self.COLORS['primary_light'], hover_color=self.COLORS['primary_hover'],
-            command=self.open_error_log, width=120, height=30
+            command=self.open_error_log, width=160, height=30
         )
 
     def start_migration(self):
@@ -138,7 +140,7 @@ class MigrationApp(ctk.CTk):
                 except Exception as e:
                     mb.showwarning("Aviso", f"No se pudo reiniciar {prog_file}:\n{e}")
 
-        # Limpiar log de errores
+              # Limpiar log de errores
         log_file = DirectMigrator.ERROR_LOG
         if os.path.exists(log_file):
             try:
@@ -197,12 +199,8 @@ class MigrationApp(ctk.CTk):
         self._ui_started = False
 
     def open_error_log(self):
-        log = DirectMigrator.ERROR_LOG
-        if os.path.exists(log) and os.path.getsize(log) > 0:
-            try:
-                os.startfile(log)
-            except Exception:
-                mb.showinfo("Registro de errores", f"Abrir: {log}")
+        ErrorApp()
+
 
     def _run_thread(self):
         migrator = DirectMigrator(
@@ -261,11 +259,12 @@ class MigrationApp(ctk.CTk):
         self.size_lbl.configure(text="Tamaño: —")
         log = DirectMigrator.ERROR_LOG
         if os.path.exists(log) and os.path.getsize(log) > 0:
+
             self.error_btn.place(relx=1.0, rely=1.0, x=-10, y=-10, anchor='se')
         mb.showinfo("Migración", "Transferencia finalizada.")
         self.start_btn.configure(state="normal")
-
         
+
     def _start_pulse(self):
         # Activa la bandera y lanza el ciclo de pulso
         self._pulsing = True
