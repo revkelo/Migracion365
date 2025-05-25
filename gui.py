@@ -115,7 +115,13 @@ class MigrationApp(ctk.CTk):
         # Reiniciar estado de la UI para esta nueva corrida
         self._ui_started = False
         self.cancel_btn.grid_remove()
-
+        # Limpiar archivos temporales
+        for f in ["token.pickle"]:
+            try:
+                if os.path.exists(f): os.remove(f)
+            except Exception:
+                pass
+        # Reset UI inmediatamente
         # Verificar progreso previo
         prog_file = "migration_progress.json"
         if os.path.exists(prog_file) and os.path.getsize(prog_file) > 0:
@@ -138,6 +144,14 @@ class MigrationApp(ctk.CTk):
                     pass
             except Exception as e:
                 mb.showwarning("Aviso", f"No se pudo limpiar {log_file}:\n{e}")
+
+        # Eliminar token de autenticación
+        token_file = "token.pickle"
+        if os.path.exists(token_file):
+            try:
+                os.remove(token_file)
+            except Exception as e:
+                mb.showwarning("Aviso", f"No se pudo eliminar {token_file}:\n{e}")
 
         # Clear cancel event
         self._cancel_event.clear()
