@@ -15,6 +15,16 @@ import tkinter.messagebox as mb
 from PIL import Image, ImageTk
 from migrator import DirectMigrator, MigrationCancelled
 from archivo import ErrorApp
+import sys
+
+"""Devuelve ruta absoluta para ejecución directa"""
+def resource_path(relative_path):
+  
+    try:
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)
 
 """
     Clase principal de la GUI para la aplicación Migrador365.
@@ -59,7 +69,7 @@ class MigrationApp(ctk.CTk):
         self._ui_started = False
 
         ctk.set_appearance_mode("light")
-        ico_path = os.path.join("gui", "assets", "icono.ico")
+        ico_path = resource_path("gui/assets/icono.ico")
         if os.path.exists(ico_path):
             try:
                 self.iconbitmap(ico_path)
@@ -70,8 +80,8 @@ class MigrationApp(ctk.CTk):
         self.resizable(False, False)
         self.configure(fg_color=self.COLORS['background'])
 
-        self.google_icon = self._load_icon(os.path.join("gui", "assets", "googledrive.png"))
-        self.onedrive_icon = self._load_icon(os.path.join("gui", "assets", "onedrive.png"))
+        self.google_icon = self._load_icon(resource_path("gui/assets/googledrive.png"))
+        self.onedrive_icon = self._load_icon(resource_path("gui/assets/onedrive.png"))
 
         self._create_widgets()
         self.after(0, self._center_window)
