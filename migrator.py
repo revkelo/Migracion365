@@ -77,16 +77,13 @@ class DirectMigrator:
         file_progress_callback: Optional[Callable[[int, int, str], None]] = None
     ):
         self.logger.info("Iniciando migración...")
+
         folders, files, _ = self.google.list_files_and_folders()
-        entries = list(files.values())
+        entries = [f for f in files.values() if f['mimeType'] in GOOGLE_EXPORT_FORMATS]
         total_files = len(entries)
         processed = 0
 
         for info in entries:
-    
-            if info['mimeType'] not in GOOGLE_EXPORT_FORMATS:
-                continue
-          
             if self.cancel_event and self.cancel_event.is_set():
                 self.logger.info("Migración cancelada por usuario")
                 return
@@ -94,25 +91,21 @@ class DirectMigrator:
             fid = info['id']
             name = info['name']
 
-            if progress_callback:
-                progress_callback(processed + 1, total_files, name)
+            if skip_existing and fid in self.progress.get('migrated_files', set()):
+                processed += 1
+                if progress_callback:
+                    progress_callback(processed, total_files, name)
+                continue
 
             parents = info.get('parents') or []
             path_parts = (
                 self.google.get_folder_path(parents[0], folders)
                 if parents else []
             )
-    
             folder_path = '/'.join(path_parts)
-
             drive_path = f"{folder_path}/{name}" if folder_path else name
 
-            if skip_existing and fid in self.progress.get('migrated_files', set()):
-                processed += 1
-                continue
-
             try:
-   
                 t0 = time.perf_counter()
                 data, ext_name = self.google.download_file(info)
                 t1 = time.perf_counter()
@@ -121,13 +114,11 @@ class DirectMigrator:
                 if data is None:
                     raise RuntimeError("Descarga fallida")
 
- 
                 data.seek(0, 2)
                 total_bytes = data.tell()
                 data.seek(0)
 
                 remote_path = f"{self.onedrive_folder}/{folder_path}/{ext_name}".lstrip('/')
-
 
                 t2 = time.perf_counter()
                 self.one.upload(
@@ -142,54 +133,37 @@ class DirectMigrator:
                 t3 = time.perf_counter()
                 self.logger.info(f"Subida   {name}: {t3-t2:.2f}s")
 
-
                 self.progress.setdefault('migrated_files', set()).add(fid)
                 save_progress(PROGRESS_FILE, self.progress)
 
             except Exception as e:
                 raw_msg = str(e)
-                mensaje_final = raw_msg  
+                mensaje_final = raw_msg
 
                 if 'exportSizeLimitExceeded' in raw_msg:
-                    mensaje_final = (
-                        "Este archivo es demasiado grande para ser exportado desde Google Docs. "
-                        "Considere descargarlo manualmente desde Google Drive."
-                    )
+                    mensaje_final = "Este archivo es demasiado grande para ser exportado desde Google Docs."
                 elif '403' in raw_msg and 'export' in raw_msg:
-                    mensaje_final = (
-                        "No tienes permiso para exportar este archivo desde Google Docs. "
-                        "Verifica si eres el propietario o si tienes permisos suficientes."
-                    )
+                    mensaje_final = "No tienes permiso para exportar este archivo desde Google Docs."
                 elif '404' in raw_msg:
-                    mensaje_final = (
-                        "Archivo no encontrado. Puede haber sido eliminado o movido en Google Drive."
-                    )
+                    mensaje_final = "Archivo no encontrado."
                 elif 'ConnectionError' in raw_msg or 'Failed to establish a new connection' in raw_msg:
-                    mensaje_final = (
-                        "Hubo un error de red al intentar descargar o subir el archivo. "
-                        "Verifica tu conexión a Internet."
-                    )
+                    mensaje_final = "Error de red. Verifica tu conexión a Internet."
                 elif 'invalid_grant' in raw_msg or 'Token has been expired or revoked' in raw_msg:
-                    mensaje_final = (
-                        "Tu sesión de autenticación ha expirado. Por favor, vuelve a iniciar sesión."
-                    )
+                    mensaje_final = "Tu sesión ha expirado. Inicia sesión nuevamente."
                 elif 'rateLimitExceeded' in raw_msg:
-                    mensaje_final = (
-                        "Se excedió el límite de solicitudes a la API. Intenta de nuevo en unos minutos."
-                    )
+                    mensaje_final = "Se excedió el límite de la API. Intenta más tarde."
                 elif 'Backend Error' in raw_msg:
-                    mensaje_final = (
-                        "Error temporal de Google Drive. Intenta nuevamente más tarde."
-                    )
+                    mensaje_final = "Error temporal de Google Drive."
 
                 self._log_error(drive_path, mensaje_final)
 
-
-
             processed += 1
+            if progress_callback:
+                progress_callback(processed, total_files, name)
 
         if progress_callback:
             progress_callback(total_files, total_files, '')
+
 
     """
         Añade una entrada en el archivo de errores con timestamp y ruta.

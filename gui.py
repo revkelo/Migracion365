@@ -372,6 +372,7 @@ class MigrationApp(ctk.CTk):
             self.size_lbl.configure(text=f"Tamaño: {self._last_size_mb:.2f} MB")
         self.progress.set(pct)
         self.status_lbl.configure(text=f"Migrando: {name} ({pct*100:.0f}%)")
+        
 
 
     """
