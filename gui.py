@@ -210,7 +210,7 @@ class MigrationApp(ctk.CTk):
                     os.remove(f)
             except Exception:
                 pass
-            
+
         prog_file = "migration_progress.json"
         if os.path.exists(prog_file) and os.path.getsize(prog_file) > 0:
             continuar = mb.askyesno(
@@ -223,15 +223,14 @@ class MigrationApp(ctk.CTk):
                         pass
                 except Exception as e:
                     mb.showwarning("Aviso", f"No se pudo reiniciar {prog_file}:\n{e}")
-                    
-        log_file = DirectMigrator.ERROR_LOG
-        if os.path.exists(log_file):
-            try:
-                with open(log_file, 'w', encoding='utf-8'):
-                    pass
-            except Exception as e:
-                mb.showwarning("Aviso", f"No se pudo limpiar {log_file}:\n{e}")
 
+                log_file = DirectMigrator.ERROR_LOG
+                if os.path.exists(log_file):
+                    try:
+                        with open(log_file, 'w', encoding='utf-8'):
+                            pass
+                    except Exception as e:
+                        mb.showwarning("Aviso", f"No se pudo limpiar {log_file}:\n{e}")
 
         self._cancel_event.clear()
         self.start_btn.configure(state="disabled")
@@ -244,6 +243,7 @@ class MigrationApp(ctk.CTk):
         self._start_pulse()
         thread = threading.Thread(target=self._run_thread, daemon=True)
         thread.start()
+
 
     """
         Señaliza la cancelación y restablece la UI.

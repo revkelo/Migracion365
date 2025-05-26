@@ -53,7 +53,7 @@ def sanitize_filename(filename: str) -> str:
     - Si el nombre excede 250 caracteres, recorta el nombre a 245 caracteres y conserva la extensión.
     - Retorna el nombre resultante sin espacios al inicio o final.
     """
-    sanitized = re.sub(r'[\\/*?:"<>|]', '_', filename)
+    sanitized = re.sub(r'[\\/*?:"<>|#]', '_', filename)
     if len(sanitized) > 250:
         name, ext = os.path.splitext(sanitized)
         sanitized = name[:245] + ext

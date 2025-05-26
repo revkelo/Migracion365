@@ -147,7 +147,44 @@ class DirectMigrator:
                 save_progress(PROGRESS_FILE, self.progress)
 
             except Exception as e:
-                self._log_error(drive_path, str(e))
+                raw_msg = str(e)
+                mensaje_final = raw_msg  
+
+                if 'exportSizeLimitExceeded' in raw_msg:
+                    mensaje_final = (
+                        "Este archivo es demasiado grande para ser exportado desde Google Docs. "
+                        "Considere descargarlo manualmente desde Google Drive."
+                    )
+                elif '403' in raw_msg and 'export' in raw_msg:
+                    mensaje_final = (
+                        "No tienes permiso para exportar este archivo desde Google Docs. "
+                        "Verifica si eres el propietario o si tienes permisos suficientes."
+                    )
+                elif '404' in raw_msg:
+                    mensaje_final = (
+                        "Archivo no encontrado. Puede haber sido eliminado o movido en Google Drive."
+                    )
+                elif 'ConnectionError' in raw_msg or 'Failed to establish a new connection' in raw_msg:
+                    mensaje_final = (
+                        "Hubo un error de red al intentar descargar o subir el archivo. "
+                        "Verifica tu conexión a Internet."
+                    )
+                elif 'invalid_grant' in raw_msg or 'Token has been expired or revoked' in raw_msg:
+                    mensaje_final = (
+                        "Tu sesión de autenticación ha expirado. Por favor, vuelve a iniciar sesión."
+                    )
+                elif 'rateLimitExceeded' in raw_msg:
+                    mensaje_final = (
+                        "Se excedió el límite de solicitudes a la API. Intenta de nuevo en unos minutos."
+                    )
+                elif 'Backend Error' in raw_msg:
+                    mensaje_final = (
+                        "Error temporal de Google Drive. Intenta nuevamente más tarde."
+                    )
+
+                self._log_error(drive_path, mensaje_final)
+
+
 
             processed += 1
 
