@@ -140,8 +140,38 @@ class MigrationApp(ctk.CTk):
         - Barra de progreso y labels de estado y tamaño.
     """
     def _create_widgets(self):
+        # Labels arriba
+        self.status_lbl = ctk.CTkLabel(self, text="Oprime iniciar...", text_color=self.COLORS['text'])
+        self.status_lbl.pack(pady=(10, 0))
+
+        self.size_lbl = ctk.CTkLabel(self, text="Tamaño: —", text_color=self.COLORS['text'])
+        self.size_lbl.pack(pady=(0, 5))
+
+        # Barra de progreso e íconos
+        frame = ctk.CTkFrame(self, fg_color=self.COLORS['background'])
+        frame.pack(pady=5, padx=20, fill='x')
+        frame.grid_columnconfigure(1, weight=1)
+
+        ctk.CTkLabel(frame, image=self.google_icon, text="").grid(row=0, column=0, padx=10)
+        self.progress = ctk.CTkProgressBar(
+            frame, width=400,
+            fg_color=self.COLORS['progress_bg'], progress_color=self.COLORS['primary']
+        )
+        self.progress.set(0)
+        self.progress.grid(row=0, column=1, padx=10, sticky='ew')
+        ctk.CTkLabel(frame, image=self.onedrive_icon, text="").grid(row=0, column=2, padx=10)
+
+        # Botón de errores (oculto por defecto)
+        self.error_btn = ctk.CTkButton(
+            self, text="Ver archivos problemáticos",
+            fg_color=self.COLORS['primary_light'], hover_color=self.COLORS['primary_hover'],
+            command=self.open_error_log, width=160, height=30
+        )
+        self.error_btn.place_forget()
+
+        # Botones de acción (abajo)
         btn_frame = ctk.CTkFrame(self, fg_color=self.COLORS['background'])
-        btn_frame.pack(pady=10)
+        btn_frame.pack(pady=(10, 15))
 
         self.start_btn = ctk.CTkButton(
             btn_frame, text="Iniciar",
@@ -158,32 +188,6 @@ class MigrationApp(ctk.CTk):
         self.cancel_btn.grid(row=0, column=1, padx=5)
         self.cancel_btn.grid_remove()
 
-        frame = ctk.CTkFrame(self, fg_color=self.COLORS['background'])
-        frame.pack(pady=5, padx=20, fill='x')
-        frame.grid_columnconfigure(1, weight=1)
-
-        ctk.CTkLabel(frame, image=self.google_icon, text="").grid(row=0, column=0, padx=10)
-        self.progress = ctk.CTkProgressBar(
-            frame, width=400,
-            fg_color=self.COLORS['progress_bg'], progress_color=self.COLORS['primary']
-        )
-        self.progress.set(0)
-        self.progress.grid(row=0, column=1, padx=10, sticky='ew')
-        ctk.CTkLabel(frame, image=self.onedrive_icon, text="").grid(row=0, column=2, padx=10)
-
-        self.status_lbl = ctk.CTkLabel(self, text="Oprime iniciar...", text_color=self.COLORS['text'])
-        self.status_lbl.pack(pady=(5,0))
-
-        self.size_lbl = ctk.CTkLabel(self, text="Tamaño: —", text_color=self.COLORS['text'])
-        self.size_lbl.pack(pady=(0,5))
-
-        self.error_btn = ctk.CTkButton(
-            self, text="Ver archivos problemáticos",
-            fg_color=self.COLORS['primary_light'], hover_color=self.COLORS['primary_hover'],
-            command=self.open_error_log, width=160, height=30
-            
-        )
-        self.error_btn.place_forget()
 
 
     """
