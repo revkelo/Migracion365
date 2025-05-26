@@ -17,6 +17,7 @@ from utils import load_progress, save_progress
 from google_service import GoogleService
 from onedrive_service import OneDriveService
 import threading
+from config import GOOGLE_EXPORT_FORMATS
 
 """
     Señaliza que el usuario ha cancelado el proceso de migración.
@@ -82,6 +83,9 @@ class DirectMigrator:
         processed = 0
 
         for info in entries:
+    
+            if info['mimeType'] not in GOOGLE_EXPORT_FORMATS:
+                continue
           
             if self.cancel_event and self.cancel_event.is_set():
                 self.logger.info("Migración cancelada por usuario")

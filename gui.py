@@ -85,15 +85,8 @@ class MigrationApp(ctk.CTk):
 
         self._create_widgets()
         self.after(0, self._center_window)
-        mb.showinfo(
-            "Bienvenido",
-            "Bienvenido a Migrador365\n\n"
-            "Esta herramienta migrará tus archivos de Google Drive a OneDrive.\n\n"
-            "Antes de comenzar, por favor:\n"
-            "1. Verifique que tiene conexión a internet estable.\n"
-            "2. Asegúrese de que su dispositivo esté cargado o conectado a la corriente.\n"
-            "3. No suspenda ni apague su equipo durante la migración"
-        )
+        self.after(200, self._show_welcome_message) 
+
         
     """
         Centra la ventana en la pantalla según WINDOW_SIZE.
@@ -105,6 +98,20 @@ class MigrationApp(ctk.CTk):
         x = (sw - width) // 2
         y = (sh - height) // 2
         self.geometry(f"{width}x{height}+{x}+{y}")
+
+
+    def _show_welcome_message(self):
+        mb.showinfo(
+            "Bienvenido",
+            "Bienvenido a Migrador365\n\n"
+            "Esta herramienta migrará tus archivos de Google Drive a OneDrive.\n\n"
+            "Antes de comenzar, por favor:\n"
+            "1. Verifique que tiene conexión a internet estable.\n"
+            "2. Asegúrese de que su dispositivo esté cargado o conectado a la corriente.\n"
+            "3. No suspenda ni apague su equipo durante la migración"
+        )
+
+
 
 
     """
