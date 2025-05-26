@@ -89,7 +89,8 @@ class DirectMigrator:
                 return
 
             fid = info['id']
-            name = info['name']
+            raw_name = info['name']
+            name = raw_name.replace('\r', '').replace('\n', ' ').strip()
 
             if skip_existing and fid in self.progress.get('migrated_files', set()):
                 processed += 1
@@ -110,14 +111,9 @@ class DirectMigrator:
                 data, ext_name = self.google.download_file(info)
                 t1 = time.perf_counter()
                 self.logger.info(f"Descarga {name}: {t1-t0:.2f}s")
-
-                if data is None:
-                    raise RuntimeError("Descarga fallida")
-
                 data.seek(0, 2)
                 total_bytes = data.tell()
                 data.seek(0)
-
                 remote_path = f"{self.onedrive_folder}/{folder_path}/{ext_name}".lstrip('/')
 
                 t2 = time.perf_counter()
@@ -172,7 +168,9 @@ class DirectMigrator:
         - `message`: descripción del error.
     """
     def _log_error(self, drive_path: str, message: str) -> None:
-        entry = f"{time.strftime('%Y-%m-%d %H:%M:%S')} - {drive_path} - {message}\n"
+
+        clean_path = drive_path.replace('\r', '').replace('\n', '')
+        entry = f"{time.strftime('%Y-%m-%d %H:%M:%S')} - {clean_path} - {message}\n"
         try:
             with open(self.ERROR_LOG, 'a', encoding='utf-8') as f:
                 f.write(entry)
