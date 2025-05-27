@@ -10,6 +10,7 @@ import re
 import json
 import os
 from pathlib import Path
+import sys
 
 
 def load_progress(progress_file: str) -> dict:
@@ -43,6 +44,17 @@ def save_progress(progress_file: str, data: dict):
             json.dump(to_save, f, indent=2)
     except Exception:
         pass
+
+
+
+"""Devuelve ruta absoluta para ejecución directa"""
+def resource_path(relative_path):
+  
+    try:
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)
 
 
 def sanitize_filename(filename: str) -> str:

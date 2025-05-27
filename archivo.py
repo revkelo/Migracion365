@@ -12,6 +12,7 @@ import os
 import customtkinter as ctk
 import tkinter as tk
 from tkinter import ttk, messagebox
+from utils import resource_path
 
 class ErrorApp(ctk.CTkToplevel):
     """
@@ -49,12 +50,12 @@ class ErrorApp(ctk.CTkToplevel):
         self._initialized = True
         self.title("Archivos problemáticos")
         width, height = 900, 400
-        ico_path = os.path.join("gui", "assets", "icono.ico")
+        ctk.set_appearance_mode("light")
+        ico_path = resource_path("gui/assets/icono.ico")
         if os.path.exists(ico_path):
             try:
                 self.iconbitmap(ico_path)
             except Exception:
-
                 pass
         sw, sh = self.winfo_screenwidth(), self.winfo_screenheight()
         x = (sw - width) // 2
@@ -128,6 +129,26 @@ class ErrorApp(ctk.CTkToplevel):
         menu.add_command(label='Copiar celda', command=copy_cell)
         tree.bind('<Button-3>', lambda e: menu.tk_popup(e.x_root, e.y_root))
 
+
+        tooltip = ToolTip(tree)
+
+        def on_motion(event):
+            row_id = tree.identify_row(event.y)
+            col_id = tree.identify_column(event.x)
+            if row_id and col_id == '#5':  # columna "Mensaje"
+                item = tree.item(row_id)
+                msg = item['values'][4]
+                tooltip.showtip(msg, event.x_root, event.y_root)
+            else:
+                tooltip.hidetip()
+
+        def on_leave(event):
+            tooltip.hidetip()
+            
+        tree.bind('<Motion>', on_motion)
+        tree.bind('<Leave>', on_leave)
+
+
         self.protocol('WM_DELETE_WINDOW', self._on_close)
 
     def _on_close(self):
@@ -137,3 +158,22 @@ class ErrorApp(ctk.CTkToplevel):
         """
         self.destroy()
         type(self)._instance = None
+
+class ToolTip:
+    def __init__(self, widget):
+        self.widget = widget
+        self.tipwindow = None
+
+    def showtip(self, text, x, y):
+        self.hidetip()
+        self.tipwindow = tw = tk.Toplevel(self.widget)
+        tw.wm_overrideredirect(True)
+        tw.wm_geometry(f"+{x+20}+{y+10}")
+        label = tk.Label(tw, text=text, justify='left', background="#ffffe0",
+                         relief='solid', borderwidth=1, wraplength=400)
+        label.pack(ipadx=1)
+
+    def hidetip(self):
+        if self.tipwindow:
+            self.tipwindow.destroy()
+            self.tipwindow = None

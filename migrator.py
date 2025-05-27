@@ -183,12 +183,9 @@ class DirectMigrator:
         if 'exportSizeLimitExceeded' in msg:
             return "Este archivo es demasiado grande para ser exportado desde Google Docs."
         
-        if 'cannotExportFile' in msg:
-
-            match = re.search(r'returned\s+"([^"]+)"', msg)
-            if match:
-                return match.group(1)  
+        if 'cannotExportFile' in msg or 'This file cannot be exported by the user.' in msg:
             return "No tienes permiso para exportar este archivo desde Google Docs."
+
         
         if '403' in msg and 'export' in msg:
             return "No tienes permiso para exportar este archivo desde Google Docs."

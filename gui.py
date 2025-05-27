@@ -16,16 +16,8 @@ from PIL import Image, ImageTk
 from migrator import DirectMigrator, MigrationCancelled,ConnectionLost
 from onedrive_service import OneDriveTokenExpired
 from archivo import ErrorApp
-import sys
+from utils import resource_path
 
-"""Devuelve ruta absoluta para ejecución directa"""
-def resource_path(relative_path):
-  
-    try:
-        base_path = sys._MEIPASS
-    except Exception:
-        base_path = os.path.abspath(".")
-    return os.path.join(base_path, relative_path)
 
 """
     Clase principal de la GUI para la aplicación Migrador365.
