@@ -10,6 +10,7 @@ import re
 import json
 import os
 from pathlib import Path
+import sys
 
 
 def load_progress(progress_file: str) -> dict:
@@ -45,6 +46,17 @@ def save_progress(progress_file: str, data: dict):
         pass
 
 
+
+"""Devuelve ruta absoluta para ejecución directa"""
+def resource_path(relative_path):
+  
+    try:
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)
+
+
 def sanitize_filename(filename: str) -> str:
     """
     Reemplaza caracteres inválidos en un nombre de archivo y limita su longitud.
@@ -53,7 +65,7 @@ def sanitize_filename(filename: str) -> str:
     - Si el nombre excede 250 caracteres, recorta el nombre a 245 caracteres y conserva la extensión.
     - Retorna el nombre resultante sin espacios al inicio o final.
     """
-    sanitized = re.sub(r'[\\/*?:"<>|]', '_', filename)
+    sanitized = re.sub(r'[\\/*?:"<>|#]', '_', filename)
     if len(sanitized) > 250:
         name, ext = os.path.splitext(sanitized)
         sanitized = name[:245] + ext

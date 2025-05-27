@@ -13,18 +13,11 @@ import threading
 import customtkinter as ctk
 import tkinter.messagebox as mb
 from PIL import Image, ImageTk
-from migrator import DirectMigrator, MigrationCancelled
+from migrator import DirectMigrator, MigrationCancelled,ConnectionLost
+from onedrive_service import OneDriveTokenExpired
 from archivo import ErrorApp
-import sys
+from utils import resource_path
 
-"""Devuelve ruta absoluta para ejecución directa"""
-def resource_path(relative_path):
-  
-    try:
-        base_path = sys._MEIPASS
-    except Exception:
-        base_path = os.path.abspath(".")
-    return os.path.join(base_path, relative_path)
 
 """
     Clase principal de la GUI para la aplicación Migrador365.
@@ -62,7 +55,7 @@ class MigrationApp(ctk.CTk):
     def __init__(self):
         super().__init__()
         self.error_win = None
-        self.title("Migrador365")
+        self.title("Migracion365")
 
         self._cancel_event = threading.Event()
         self._last_size_mb = 0.0
@@ -85,15 +78,8 @@ class MigrationApp(ctk.CTk):
 
         self._create_widgets()
         self.after(0, self._center_window)
-        mb.showinfo(
-            "Bienvenido",
-            "Bienvenido a Migrador365\n\n"
-            "Esta herramienta migrará tus archivos de Google Drive a OneDrive.\n\n"
-            "Antes de comenzar, por favor:\n"
-            "1. Verifique que tiene conexión a internet estable.\n"
-            "2. Asegúrese de que su dispositivo esté cargado o conectado a la corriente.\n"
-            "3. No suspenda ni apague su equipo durante la migración"
-        )
+        self.after(200, self._show_welcome_message) 
+
         
     """
         Centra la ventana en la pantalla según WINDOW_SIZE.
@@ -105,6 +91,20 @@ class MigrationApp(ctk.CTk):
         x = (sw - width) // 2
         y = (sh - height) // 2
         self.geometry(f"{width}x{height}+{x}+{y}")
+
+
+    def _show_welcome_message(self):
+        mb.showinfo(
+            "Bienvenido",
+            "Bienvenido a Migracion365\n\n"
+            "Esta herramienta migrará tus archivos de Google Drive a OneDrive.\n\n"
+            "Antes de comenzar, por favor:\n"
+            "1. Verifique que tiene conexión a internet estable.\n"
+            "2. Asegúrese de que su dispositivo esté cargado o conectado a la corriente.\n"
+            "3. No suspenda ni apague su equipo durante la migración"
+        )
+
+
 
 
     """
@@ -133,8 +133,38 @@ class MigrationApp(ctk.CTk):
         - Barra de progreso y labels de estado y tamaño.
     """
     def _create_widgets(self):
+        # Labels arriba
+        self.status_lbl = ctk.CTkLabel(self, text="Oprime iniciar...", text_color=self.COLORS['text'])
+        self.status_lbl.pack(pady=(10, 0))
+
+        self.size_lbl = ctk.CTkLabel(self, text="Tamaño: —", text_color=self.COLORS['text'])
+        self.size_lbl.pack(pady=(0, 5))
+
+        # Barra de progreso e íconos
+        frame = ctk.CTkFrame(self, fg_color=self.COLORS['background'])
+        frame.pack(pady=5, padx=20, fill='x')
+        frame.grid_columnconfigure(1, weight=1)
+
+        ctk.CTkLabel(frame, image=self.google_icon, text="").grid(row=0, column=0, padx=10)
+        self.progress = ctk.CTkProgressBar(
+            frame, width=400,
+            fg_color=self.COLORS['progress_bg'], progress_color=self.COLORS['primary']
+        )
+        self.progress.set(0)
+        self.progress.grid(row=0, column=1, padx=10, sticky='ew')
+        ctk.CTkLabel(frame, image=self.onedrive_icon, text="").grid(row=0, column=2, padx=10)
+
+        # Botón de errores (oculto por defecto)
+        self.error_btn = ctk.CTkButton(
+            self, text="Ver archivos problemáticos",
+            fg_color=self.COLORS['primary_light'], hover_color=self.COLORS['primary_hover'],
+            command=self.open_error_log, width=160, height=30
+        )
+        self.error_btn.place_forget()
+
+        # Botones de acción (abajo)
         btn_frame = ctk.CTkFrame(self, fg_color=self.COLORS['background'])
-        btn_frame.pack(pady=10)
+        btn_frame.pack(pady=(10, 15))
 
         self.start_btn = ctk.CTkButton(
             btn_frame, text="Iniciar",
@@ -151,32 +181,6 @@ class MigrationApp(ctk.CTk):
         self.cancel_btn.grid(row=0, column=1, padx=5)
         self.cancel_btn.grid_remove()
 
-        frame = ctk.CTkFrame(self, fg_color=self.COLORS['background'])
-        frame.pack(pady=5, padx=20, fill='x')
-        frame.grid_columnconfigure(1, weight=1)
-
-        ctk.CTkLabel(frame, image=self.google_icon, text="").grid(row=0, column=0, padx=10)
-        self.progress = ctk.CTkProgressBar(
-            frame, width=400,
-            fg_color=self.COLORS['progress_bg'], progress_color=self.COLORS['primary']
-        )
-        self.progress.set(0)
-        self.progress.grid(row=0, column=1, padx=10, sticky='ew')
-        ctk.CTkLabel(frame, image=self.onedrive_icon, text="").grid(row=0, column=2, padx=10)
-
-        self.status_lbl = ctk.CTkLabel(self, text="Oprime iniciar...", text_color=self.COLORS['text'])
-        self.status_lbl.pack(pady=(5,0))
-
-        self.size_lbl = ctk.CTkLabel(self, text="Tamaño: —", text_color=self.COLORS['text'])
-        self.size_lbl.pack(pady=(0,5))
-
-        self.error_btn = ctk.CTkButton(
-            self, text="Ver archivos problemáticos",
-            fg_color=self.COLORS['primary_light'], hover_color=self.COLORS['primary_hover'],
-            command=self.open_error_log, width=160, height=30
-            
-        )
-        self.error_btn.place_forget()
 
 
     """
@@ -203,7 +207,7 @@ class MigrationApp(ctk.CTk):
                     os.remove(f)
             except Exception:
                 pass
-            
+
         prog_file = "migration_progress.json"
         if os.path.exists(prog_file) and os.path.getsize(prog_file) > 0:
             continuar = mb.askyesno(
@@ -216,7 +220,7 @@ class MigrationApp(ctk.CTk):
                         pass
                 except Exception as e:
                     mb.showwarning("Aviso", f"No se pudo reiniciar {prog_file}:\n{e}")
-                    
+
         log_file = DirectMigrator.ERROR_LOG
         if os.path.exists(log_file):
             try:
@@ -224,8 +228,6 @@ class MigrationApp(ctk.CTk):
                     pass
             except Exception as e:
                 mb.showwarning("Aviso", f"No se pudo limpiar {log_file}:\n{e}")
-
-
         self._cancel_event.clear()
         self.start_btn.configure(state="disabled")
         self.status_lbl.configure(text="Iniciando migración...")
@@ -237,6 +239,7 @@ class MigrationApp(ctk.CTk):
         self._start_pulse()
         thread = threading.Thread(target=self._run_thread, daemon=True)
         thread.start()
+
 
     """
         Señaliza la cancelación y restablece la UI.
@@ -342,9 +345,27 @@ class MigrationApp(ctk.CTk):
                 progress_callback=on_global,
                 file_progress_callback=on_file
             )
+            
+        except OneDriveTokenExpired as e:
+
+            self.after(0, lambda: mb.showerror(
+                "Autenticación expirada",
+                str(e)
+            ))
+
+            return
+        except ConnectionLost as e:
+            # Alertamos al usuario y restablecemos la UI
+            self.after(0, lambda: mb.showerror(
+                "Conexión perdida",
+                f"Se perdió la conexión a Internet:\n{e}"
+            ))
+            self.after(0, self._reset_ui)
+            return
         except MigrationCancelled:
             self.after(0, self._reset_ui)
             return
+        
 
         if not self._cancel_event.is_set():
             self.after(0, self._on_complete)
@@ -365,6 +386,7 @@ class MigrationApp(ctk.CTk):
             self.size_lbl.configure(text=f"Tamaño: {self._last_size_mb:.2f} MB")
         self.progress.set(pct)
         self.status_lbl.configure(text=f"Migrando: {name} ({pct*100:.0f}%)")
+        
 
 
     """
