@@ -13,7 +13,8 @@ import threading
 import customtkinter as ctk
 import tkinter.messagebox as mb
 from PIL import Image, ImageTk
-from migrator import DirectMigrator, MigrationCancelled
+from migrator import DirectMigrator, MigrationCancelled,ConnectionLost
+from onedrive_service import OneDriveTokenExpired
 from archivo import ErrorApp
 import sys
 
@@ -352,9 +353,27 @@ class MigrationApp(ctk.CTk):
                 progress_callback=on_global,
                 file_progress_callback=on_file
             )
+            
+        except OneDriveTokenExpired as e:
+
+            self.after(0, lambda: mb.showerror(
+                "Autenticación expirada",
+                str(e)
+            ))
+
+            return
+        except ConnectionLost as e:
+            # Alertamos al usuario y restablecemos la UI
+            self.after(0, lambda: mb.showerror(
+                "Conexión perdida",
+                f"Se perdió la conexión a Internet:\n{e}"
+            ))
+            self.after(0, self._reset_ui)
+            return
         except MigrationCancelled:
             self.after(0, self._reset_ui)
             return
+        
 
         if not self._cancel_event.is_set():
             self.after(0, self._on_complete)

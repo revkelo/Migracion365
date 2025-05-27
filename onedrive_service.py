@@ -23,6 +23,11 @@ from config import (
 )
 from utils import sanitize_filename
 
+class OneDriveTokenExpired(Exception):
+    """Excepción lanzada cuando el token de OneDrive ha expirado y requiere reautenticación."""
+    pass
+
+
 class OneDriveService:
     
     """
@@ -96,6 +101,26 @@ class OneDriveService:
         - Registra errores y retorna False si falla.
      """
    
+   
+   
+    def _handle_token_expired(self, response) -> bool:
+        if response.status_code == 401:
+            self.logger.warning("Token expirado. Reintentando autenticación con OneDrive.")
+            try:
+                # Intentamos renovar el token automáticamente
+                self.authenticate()
+                return True
+            except Exception as e:
+                # Si falla la reautenticación, informamos y propagamos la excepción específica
+                self.logger.error(f"Error reautenticando OneDrive: {e}")
+                raise OneDriveTokenExpired(
+                    "La sesión de OneDrive ha expirado. Por favor, vuelve a iniciar sesión."
+                )
+        return False
+
+   
+
+
     def create_folder(self, path: str) -> bool:
 
         if not path.strip():
@@ -182,10 +207,19 @@ class OneDriveService:
         headers: dict
     ) -> bool:
         headers = headers.copy()
+        headers["Authorization"] = f"Bearer {self.token}"
         headers["Content-Type"] = "application/octet-stream"
         url = f"https://graph.microsoft.com/v1.0/me/drive/root:/{remote_path}:/content"
         resp = requests.put(url, headers=headers, data=file_data.read())
+
+        if self._handle_token_expired(resp):
+            # Retry after reauth
+            headers["Authorization"] = f"Bearer {self.token}"
+            file_data.seek(0)
+            resp = requests.put(url, headers=headers, data=file_data.read())
+
         return resp.status_code in (200, 201)
+
 
 
     """
@@ -217,9 +251,20 @@ class OneDriveService:
 
             chunk_headers = {
                 "Content-Length": str(len(chunk)),
-                "Content-Range": f"bytes {bytes_sent}-{end}/{size}"
+                "Content-Range": f"bytes {bytes_sent}-{end}/{size}",
+                "Authorization": f"Bearer {self.token}"
             }
+
             resp = requests.put(upload_url, headers=chunk_headers, data=chunk)
+
+            # 🔁 Manejo de token expirado (401)
+            if resp.status_code == 401:
+                self.logger.warning("Token expirado. Reautenticando y reintentando fragmento...")
+                self.authenticate()
+                upload_url = self.create_upload_session(remote_path)  # ⚠️ necesario nuevo URL
+                file_data.seek(bytes_sent)
+                continue
+
             if resp.status_code not in (200, 201, 202):
                 self.logger.error(f"Error subiendo fragmento: {resp.text}")
                 return False
@@ -229,3 +274,4 @@ class OneDriveService:
                 progress_callback(bytes_sent, size, filename)
 
         return True
+

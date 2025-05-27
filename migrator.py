@@ -17,10 +17,15 @@ from utils import load_progress, save_progress
 from google_service import GoogleService
 from onedrive_service import OneDriveService
 import threading
+import re
 from config import GOOGLE_EXPORT_FORMATS
 
 class MigrationCancelled(Exception):
     """Señaliza que el usuario ha cancelado el proceso de migración."""
+    pass
+
+class ConnectionLost(Exception):
+    """Señaliza que se perdió la conexión a Internet durante la migración."""
     pass
 
 class DirectMigrator:
@@ -109,6 +114,8 @@ class DirectMigrator:
                         mensaje = "Descarga fallida (error desconocido)"
                     
                     print(f"[ERROR] {drive_path} -> {mensaje}") 
+                    
+                    
                     self._log_error(drive_path, mensaje)         
                     processed += 1
                     if progress_callback:
@@ -144,6 +151,11 @@ class DirectMigrator:
                 raw_msg = str(e)
                 mensaje = self._format_error(raw_msg)
                 self._log_error(drive_path, mensaje)
+                if mensaje in (
+                        "Tiempo de espera agotado al leer los datos.",
+                        "No se pudo conectar al servidor de Google APIs."
+                ):
+                    raise ConnectionLost(mensaje)    
 
             # Actualizar progreso final de archivo
             processed += 1
@@ -167,24 +179,43 @@ class DirectMigrator:
     def _format_error(self, raw_msg: str) -> str:
         # Aseguramos que trabajamos con texto plano
         msg = str(raw_msg)
-        print("🧩 Analizando error:", msg)
+
 
         if 'exportSizeLimitExceeded' in msg:
             return "Este archivo es demasiado grande para ser exportado desde Google Docs."
+        
         if 'cannotExportFile' in msg:
+            # extraemos la razón entre comillas para mostrarla textualmente
+            match = re.search(r'returned\s+"([^"]+)"', msg)
+            if match:
+                return match.group(1)  # e.g. "This file cannot be exported by the user."
             return "No tienes permiso para exportar este archivo desde Google Docs."
+        
         if '403' in msg and 'export' in msg:
             return "No tienes permiso para exportar este archivo desde Google Docs."
+        
         if '404' in msg:
             return "Archivo no encontrado."
+        
+        # nuevo manejo de timeout
+        if 'timed out' in msg.lower():
+            return "Tiempo de espera agotado al leer los datos."
+        
+        # nuevo manejo de fallo DNS u “Unable to find the server”
+        if 'unable to find the server' in msg.lower():
+            return "No se pudo conectar al servidor de Google APIs."
+        
         if 'ConnectionError' in msg or 'Failed to establish a new connection' in msg:
             return "Error de red. Verifica tu conexión a Internet."
+        
         if 'invalid_grant' in msg or 'Token has been expired or revoked' in msg:
             return "Tu sesión ha expirado. Inicia sesión nuevamente."
+        
         if 'rateLimitExceeded' in msg:
             return "Se excedió el límite de la API. Intenta más tarde."
+        
         if 'Backend Error' in msg:
             return "Error temporal de Google Drive."
         
-        # Fallback genérico
+        # Fallback genérico: devolvemos el mensaje original
         return msg
