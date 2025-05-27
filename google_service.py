@@ -33,7 +33,7 @@ Carga el blob cifrado desde archivo.
 """
 
 def _load_encrypted_blob(filename: str = 'credentials.json.enc') -> bytes:
-    # Si estamos en un EXE creado con PyInstaller, los datos van a sys._MEIPASS
+
     if getattr(sys, 'frozen', False):
         base_path = sys._MEIPASS
     else:
@@ -114,7 +114,6 @@ class GoogleService:
                 pickle.dump(creds, token_file)
                 self.logger.info("Token guardado en %s", self.token_path)
 
-        # Inicializa APIs
         self.drive = build('drive', 'v3', credentials=creds)
         self.forms = build('forms', 'v1', credentials=creds)
         self.logger.info("APIs de Drive y Forms listas para usarse")

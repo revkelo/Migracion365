@@ -80,10 +80,10 @@ class DirectMigrator:
 
             fid     = info['id']
             raw_name = info['name']
-            # Limpio saltos de línea y espacios sobrantes
+
             name    = raw_name.replace('\r', '').replace('\n', ' ').strip()
 
-            # Si ya lo migramos, avanzamos contador y actualizamos UI
+
             if skip_existing and fid in self.progress.get('migrated_files', set()):
                 processed += 1
                 if progress_callback:
@@ -99,13 +99,13 @@ class DirectMigrator:
             drive_path  = f"{folder_path}/{name}" if folder_path else name
 
             try:
-                # Descargar
+
                 t0 = time.perf_counter()
                 data, ext_name = self.google.download_file(info)
                 t1 = time.perf_counter()
                 self.logger.info(f"Descarga {name}: {t1-t0:.2f}s")
 
-                # Si no vino contenido, uso el formateador de errores
+
                 if data is None:
                     raw_msg = getattr(self.google, 'last_error', None)
                     if raw_msg:
@@ -123,12 +123,11 @@ class DirectMigrator:
                     continue
 
 
-                # Calcular tamaño y volver al inicio
+
                 data.seek(0, 2)
                 total_bytes = data.tell()
                 data.seek(0)
 
-                # Subir
                 remote_path = f"{self.onedrive_folder}/{folder_path}/{ext_name}".lstrip('/')
                 t2 = time.perf_counter()
                 self.one.upload(
@@ -143,7 +142,7 @@ class DirectMigrator:
                 t3 = time.perf_counter()
                 self.logger.info(f"Subida   {name}: {t3-t2:.2f}s")
 
-                # Marcar migrado y guardar progreso
+
                 self.progress.setdefault('migrated_files', set()).add(fid)
                 save_progress(PROGRESS_FILE, self.progress)
 
@@ -157,12 +156,12 @@ class DirectMigrator:
                 ):
                     raise ConnectionLost(mensaje)    
 
-            # Actualizar progreso final de archivo
+
             processed += 1
             if progress_callback:
                 progress_callback(processed, total_files, name)
 
-        # Al terminar, llevar la barra al 100%
+
         if progress_callback:
             progress_callback(total_files, total_files, '')
 
@@ -177,7 +176,7 @@ class DirectMigrator:
             self.logger.error(f"Imposible escribir error en {self.ERROR_LOG}")
 
     def _format_error(self, raw_msg: str) -> str:
-        # Aseguramos que trabajamos con texto plano
+
         msg = str(raw_msg)
 
 
@@ -185,10 +184,10 @@ class DirectMigrator:
             return "Este archivo es demasiado grande para ser exportado desde Google Docs."
         
         if 'cannotExportFile' in msg:
-            # extraemos la razón entre comillas para mostrarla textualmente
+
             match = re.search(r'returned\s+"([^"]+)"', msg)
             if match:
-                return match.group(1)  # e.g. "This file cannot be exported by the user."
+                return match.group(1)  
             return "No tienes permiso para exportar este archivo desde Google Docs."
         
         if '403' in msg and 'export' in msg:
@@ -197,11 +196,11 @@ class DirectMigrator:
         if '404' in msg:
             return "Archivo no encontrado."
         
-        # nuevo manejo de timeout
+
         if 'timed out' in msg.lower():
             return "Tiempo de espera agotado al leer los datos."
         
-        # nuevo manejo de fallo DNS u “Unable to find the server”
+
         if 'unable to find the server' in msg.lower():
             return "No se pudo conectar al servidor de Google APIs."
         
@@ -217,5 +216,5 @@ class DirectMigrator:
         if 'Backend Error' in msg:
             return "Error temporal de Google Drive."
         
-        # Fallback genérico: devolvemos el mensaje original
+
         return msg

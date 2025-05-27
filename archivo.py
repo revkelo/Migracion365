@@ -44,13 +44,10 @@ class ErrorApp(ctk.CTkToplevel):
 
         if getattr(self, '_initialized', False):
             return
+        
         super().__init__(master)
         self._initialized = True
-
-  
         self.title("Archivos problemáticos")
-
-
         width, height = 900, 400
         ico_path = os.path.join("gui", "assets", "icono.ico")
         if os.path.exists(ico_path):
@@ -92,15 +89,15 @@ class ErrorApp(ctk.CTkToplevel):
 
 
         for idx, line in enumerate(lines, start=1):
-            # 1) Separa por el último ' - ' para aislar el mensaje
+
             left, msg = line.rsplit(' - ', 1)
-            # 2) Separa lo que queda (fecha y ruta) por el primer ' - '
+
             fecha, ruta = left.split(' - ', 1)
 
-            # 3) Limpia espacios y saltos de línea sobrantes en cada parte
+
             fecha = fecha.strip()
             ruta  = ruta.strip()
-            # reintroduzco la limpieza de saltos de línea en msg
+
             msg   = msg.replace('\n', ' ').replace('\r', '').strip()
 
             archivo = os.path.basename(ruta)

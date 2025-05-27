@@ -77,7 +77,7 @@ class OneDriveService:
             client_id=ONEDRIVE_CLIENT_ID,
             authority=ONEDRIVE_AUTHORITY
         )
-        # Forzar siempre login limpio
+
         for acct in app.get_accounts():
             app.remove_account(acct)
 
@@ -107,11 +107,11 @@ class OneDriveService:
         if response.status_code == 401:
             self.logger.warning("Token expirado. Reintentando autenticación con OneDrive.")
             try:
-                # Intentamos renovar el token automáticamente
+
                 self.authenticate()
                 return True
             except Exception as e:
-                # Si falla la reautenticación, informamos y propagamos la excepción específica
+
                 self.logger.error(f"Error reautenticando OneDrive: {e}")
                 raise OneDriveTokenExpired(
                     "La sesión de OneDrive ha expirado. Por favor, vuelve a iniciar sesión."
@@ -213,7 +213,7 @@ class OneDriveService:
         resp = requests.put(url, headers=headers, data=file_data.read())
 
         if self._handle_token_expired(resp):
-            # Retry after reauth
+
             headers["Authorization"] = f"Bearer {self.token}"
             file_data.seek(0)
             resp = requests.put(url, headers=headers, data=file_data.read())
@@ -257,11 +257,10 @@ class OneDriveService:
 
             resp = requests.put(upload_url, headers=chunk_headers, data=chunk)
 
-            # 🔁 Manejo de token expirado (401)
             if resp.status_code == 401:
                 self.logger.warning("Token expirado. Reautenticando y reintentando fragmento...")
                 self.authenticate()
-                upload_url = self.create_upload_session(remote_path)  # ⚠️ necesario nuevo URL
+                upload_url = self.create_upload_session(remote_path)  
                 file_data.seek(bytes_sent)
                 continue
 
