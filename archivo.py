@@ -65,6 +65,10 @@ class ErrorApp(ctk.CTkToplevel):
         ctk.set_appearance_mode("light")
 
         self._create_error_table()
+        
+        self.lift()
+        self.attributes("-topmost", True)
+        self.after(100, lambda: self.attributes("-topmost", False))
 
     def _create_error_table(self):
         """
