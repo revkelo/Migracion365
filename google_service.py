@@ -200,7 +200,9 @@ class GoogleService:
 
         except Exception as e:
             self.logger.error("Error al descargar %s: %s", name, e)
+            self.last_error = e  
             return None, name
+
         
     """
     Convierte datos de formulario a un documento Word.

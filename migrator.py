@@ -102,13 +102,19 @@ class DirectMigrator:
 
                 # Si no vino contenido, uso el formateador de errores
                 if data is None:
-                    raw_msg = getattr(self.google, 'last_error', 'Descarga fallida')
-                    mensaje = self._format_error(raw_msg)
-                    self._log_error(drive_path, mensaje)
+                    raw_msg = getattr(self.google, 'last_error', None)
+                    if raw_msg:
+                        mensaje = self._format_error(raw_msg)
+                    else:
+                        mensaje = "Descarga fallida (error desconocido)"
+                    
+                    print(f"[ERROR] {drive_path} -> {mensaje}") 
+                    self._log_error(drive_path, mensaje)         
                     processed += 1
                     if progress_callback:
                         progress_callback(processed, total_files, name)
                     continue
+
 
                 # Calcular tamaño y volver al inicio
                 data.seek(0, 2)
@@ -159,21 +165,26 @@ class DirectMigrator:
             self.logger.error(f"Imposible escribir error en {self.ERROR_LOG}")
 
     def _format_error(self, raw_msg: str) -> str:
-        print("Error",raw_msg)
-        """Mapea un mensaje crudo de excepción a tu mensaje legible."""
-        if 'exportSizeLimitExceeded' in raw_msg:
+        # Aseguramos que trabajamos con texto plano
+        msg = str(raw_msg)
+        print("🧩 Analizando error:", msg)
+
+        if 'exportSizeLimitExceeded' in msg:
             return "Este archivo es demasiado grande para ser exportado desde Google Docs."
-        if '403' in raw_msg and 'export' in raw_msg:
+        if 'cannotExportFile' in msg:
             return "No tienes permiso para exportar este archivo desde Google Docs."
-        if '404' in raw_msg:
+        if '403' in msg and 'export' in msg:
+            return "No tienes permiso para exportar este archivo desde Google Docs."
+        if '404' in msg:
             return "Archivo no encontrado."
-        if 'ConnectionError' in raw_msg or 'Failed to establish a new connection' in raw_msg:
+        if 'ConnectionError' in msg or 'Failed to establish a new connection' in msg:
             return "Error de red. Verifica tu conexión a Internet."
-        if 'invalid_grant' in raw_msg or 'Token has been expired or revoked' in raw_msg:
+        if 'invalid_grant' in msg or 'Token has been expired or revoked' in msg:
             return "Tu sesión ha expirado. Inicia sesión nuevamente."
-        if 'rateLimitExceeded' in raw_msg:
+        if 'rateLimitExceeded' in msg:
             return "Se excedió el límite de la API. Intenta más tarde."
-        if 'Backend Error' in raw_msg:
+        if 'Backend Error' in msg:
             return "Error temporal de Google Drive."
-        # Fallback genérico:
-        return raw_msg
+        
+        # Fallback genérico
+        return msg

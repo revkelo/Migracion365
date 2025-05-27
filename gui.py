@@ -228,14 +228,13 @@ class MigrationApp(ctk.CTk):
                 except Exception as e:
                     mb.showwarning("Aviso", f"No se pudo reiniciar {prog_file}:\n{e}")
 
-                log_file = DirectMigrator.ERROR_LOG
-                if os.path.exists(log_file):
-                    try:
-                        with open(log_file, 'w', encoding='utf-8'):
-                            pass
-                    except Exception as e:
-                        mb.showwarning("Aviso", f"No se pudo limpiar {log_file}:\n{e}")
-
+        log_file = DirectMigrator.ERROR_LOG
+        if os.path.exists(log_file):
+            try:
+                with open(log_file, 'w', encoding='utf-8'):
+                    pass
+            except Exception as e:
+                mb.showwarning("Aviso", f"No se pudo limpiar {log_file}:\n{e}")
         self._cancel_event.clear()
         self.start_btn.configure(state="disabled")
         self.status_lbl.configure(text="Iniciando migración...")
