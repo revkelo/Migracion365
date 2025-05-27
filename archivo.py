@@ -92,12 +92,20 @@ class ErrorApp(ctk.CTkToplevel):
 
 
         for idx, line in enumerate(lines, start=1):
-            parts = line.split(' - ', 2)
-            fecha = parts[0] if len(parts) > 0 else ''
-            ruta = parts[1] if len(parts) > 1 else ''
-            msg = parts[2] if len(parts) > 2 else ''
+            # 1) Separa por el último ' - ' para aislar el mensaje
+            left, msg = line.rsplit(' - ', 1)
+            # 2) Separa lo que queda (fecha y ruta) por el primer ' - '
+            fecha, ruta = left.split(' - ', 1)
+
+            # 3) Limpia espacios y saltos de línea sobrantes en cada parte
+            fecha = fecha.strip()
+            ruta  = ruta.strip()
+            # reintroduzco la limpieza de saltos de línea en msg
+            msg   = msg.replace('\n', ' ').replace('\r', '').strip()
+
             archivo = os.path.basename(ruta)
             tree.insert('', 'end', values=(idx, fecha, archivo, ruta, msg))
+
 
         vsb = ttk.Scrollbar(self, orient='vertical', command=tree.yview)
         tree.configure(yscrollcommand=vsb.set)
