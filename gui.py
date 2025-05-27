@@ -55,7 +55,7 @@ class MigrationApp(ctk.CTk):
     def __init__(self):
         super().__init__()
         self.error_win = None
-        self.title("Migrador365")
+        self.title("Migracion365")
 
         self._cancel_event = threading.Event()
         self._last_size_mb = 0.0
@@ -96,7 +96,7 @@ class MigrationApp(ctk.CTk):
     def _show_welcome_message(self):
         mb.showinfo(
             "Bienvenido",
-            "Bienvenido a Migrador365\n\n"
+            "Bienvenido a Migracion365\n\n"
             "Esta herramienta migrará tus archivos de Google Drive a OneDrive.\n\n"
             "Antes de comenzar, por favor:\n"
             "1. Verifique que tiene conexión a internet estable.\n"
