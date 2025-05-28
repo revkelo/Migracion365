@@ -139,7 +139,7 @@ class ErrorApp(ctk.CTkToplevel):
         def on_motion(event):
             row_id = tree.identify_row(event.y)
             col_id = tree.identify_column(event.x)
-            if row_id and col_id == '#5':  # columna "Mensaje"
+            if row_id and col_id == '#5': 
                 item = tree.item(row_id)
                 msg = item['values'][4]
                 tooltip.showtip(msg, event.x_root, event.y_root)
