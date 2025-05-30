@@ -92,7 +92,9 @@ class MigrationApp(ctk.CTk):
         y = (sh - height) // 2
         self.geometry(f"{width}x{height}+{x}+{y}")
 
-
+    """
+    Mensaje de bienvenida al iniciar el aplicativo
+    """
     def _show_welcome_message(self):
         mb.showinfo(
             "Bienvenido",
