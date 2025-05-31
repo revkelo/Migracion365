@@ -13,8 +13,10 @@ import threading
 import customtkinter as ctk
 import tkinter.messagebox as mb
 from PIL import Image, ImageTk
+from google_service import GoogleService
 from migrator import DirectMigrator, MigrationCancelled,ConnectionLost
 from onedrive_service import OneDriveTokenExpired
+import threading
 from archivo import ErrorApp
 import webbrowser
 from utils import resource_path
@@ -188,18 +190,19 @@ class MigrationApp(ctk.CTk):
         self.cancel_btn.grid(row=0, column=1, padx=5)
         self.cancel_btn.grid_remove()
         
-        self.reopen_link_btn = ctk.CTkButton(
+        self.auth_url_lbl = ctk.CTkLabel(
             self,
-            text="Abrir enlace de autenticación",
-            text_color="blue",
-            fg_color="transparent",
-            hover_color=self.COLORS['background'],
-            command=self._open_auth_url,
-            width=160,
-            height=25,
-            anchor="w"
+            text="Reinicia la aplicación si no autenticaste correctamente",
+            text_color="#000000",                                     # un azul más sobrio
+            fg_color="#E5F0FF",                                       # fondo muy suave
+            corner_radius=8,                                          # bordes redondeados
+            padx=2,                                                  # padding horizontal
+            pady=2,                                                   # padding vertical
+            wraplength=1000,                                           # ajustar texto si es muy largo
+            justify="center"                                          # centra el texto dentro de la etiqueta
         )
-        self.reopen_link_btn.place_forget()
+        self.auth_url_lbl.place_forget()
+
 
    
 
@@ -212,24 +215,8 @@ class MigrationApp(ctk.CTk):
         - Limpia archivos temporales y registros previos.
         - Configura la UI (botones, estado, progreso).
         - Inicia animación de pulso y lanza el hilo de migración.
-    """
-    
-    
-    def _open_auth_url(self):
-        """
-        Abre self._auth_url en el navegador predeterminado.
-        Si self._auth_url no está definido o es None, muestra un warning.
-        """
-        
-        print(self._auth_url)
-        if self._auth_url:
-            webbrowser.open(self._auth_url)
-        else:
-            # Si no hay URL asignada, avisamos al usuario
-            mb.showwarning(
-                "Enlace no disponible",
-                "Aún no se ha generado la URL de autenticación."
-            )
+    """  
+
         
     def start_migration(self):
 
@@ -280,8 +267,7 @@ class MigrationApp(ctk.CTk):
         self.size_lbl.configure(text="Tamaño: —")
 
         self.progress.configure(mode="indeterminate")
-        # En lugar de rely=0.75, usa rely=0.85 (o 0.80, 0.90, según necesites)
-        self.reopen_link_btn.place(relx=0.5, rely=0.90, anchor="center")
+
 
 
         self.progress.start()
@@ -289,6 +275,7 @@ class MigrationApp(ctk.CTk):
         self._start_pulse()
         thread = threading.Thread(target=self._run_thread, daemon=True)
         thread.start()
+        self.auth_url_lbl.place(relx=0.5, rely=0.90, anchor="center")
 
 
     """
@@ -387,11 +374,14 @@ class MigrationApp(ctk.CTk):
             self.after(0, lambda: self.status_lbl.configure(text=text))
 
         try: 
+            
+            self.auth_url_lbl.place(relx=0.5, rely=0.90, anchor="center")
             migrator = DirectMigrator(
                 onedrive_folder="",
                 cancel_event=self._cancel_event,
                 status_callback=lambda text: self.after(0, lambda: self.status_lbl.configure(text=text))
             )
+            self.auth_url_lbl.place_forget()
             migrator.migrate(
                 skip_existing=True,
                 progress_callback=on_global,

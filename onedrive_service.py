@@ -48,6 +48,16 @@ class OneDriveService:
         self._configure_logger()
         self.authenticate()
 
+
+
+    def get_auth_url(self) -> str:
+        """
+        Retorna la URL que se generó para el usuario, de modo que
+        desde la GUI podamos reabrirla si fue cerrada.
+        """
+        return self.url
+    
+    
     """
     Configura el logger para enviar mensajes a consola y a un archivo,
     evitando duplicar registros.

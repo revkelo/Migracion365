@@ -84,6 +84,9 @@ class GoogleService:
         self.logger = logging.getLogger(self.__class__.__name__)
         self._setup_services()
 
+
+
+
     """
     Configura credenciales y construye los clientes de API.
 
@@ -116,9 +119,7 @@ class GoogleService:
                     scopes=GOOGLE_SCOPES
                 )
 
-                # 2) Genera y guarda la URL de autorización
-                self.url, _ = flow.authorization_url(prompt='consent')
-                print(self.url)
+ 
 
                 creds = flow.run_local_server(port=8089)
                 self.logger.info("Autenticación completada con credenciales cifradas")

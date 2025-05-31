@@ -43,21 +43,20 @@ class DirectMigrator:
         onedrive_folder: str = '',
         cancel_event: Optional[threading.Event] = None,
         status_callback: Optional[Callable[[str], None]] = None,
-        auth_url_callback: Optional[Callable[[str], None]] = None 
+
     ):
         # Callbacks y configuraciones iniciales
         self.status_callback = status_callback
         self.onedrive_folder = onedrive_folder.strip('/')
-        self.auth_url_callback = auth_url_callback
+
         self.cancel_event = cancel_event
 
         # Autenticación con Google Drive
         self._update_status("Autenticando con Google Drive...")
         self.google = GoogleService()
-        self.auth_url_callback(self.google.url)
-        
-        print("URL GOOGLE")
-        print(self.google.url)
+
+    
+
         # Autenticación con OneDrive
         self._update_status("Autenticando con OneDrive...")
         self.one = OneDriveService()
