@@ -13,6 +13,7 @@ import logging
 import sys
 import json
 from pathlib import Path
+import time
 from cryptography.fernet import Fernet
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
@@ -269,34 +270,65 @@ class GoogleService:
     - Devuelve un BytesIO y nombre de fichero.
     """
     def download_file(self, file_info: dict):
+        file_id   = file_info['id']
+        mime      = file_info['mimeType']
+        name      = file_info['name']
+        
+        # 1) Chequear tamaño si es un Google Doc/Sheet/Slide
+        if mime in GOOGLE_EXPORT_FORMATS:
+            try:
+                meta = self.drive.files().get(fileId=file_id, fields="size").execute()
+                size_bytes = int(meta.get('size', 0) or 0)
+                # Ejemplo: si supera 100MB, ya sabemos que fallará
+                if size_bytes > 100 * 1024 * 1024:
+                    self.last_error = Exception("exportSizeLimitExceeded")
+                    return None, name
+            except Exception:
+                # Si no pudimos obtener size (quizá no existe), seguimos al código normal
+                pass
 
-        file_id = file_info['id']
-        mime = file_info['mimeType']
-        name = file_info['name']
-        try:
-            if mime in GOOGLE_EXPORT_FORMATS:
-                exp = GOOGLE_EXPORT_FORMATS[mime]
-                if mime == 'application/vnd.google-apps.form':
-                    form_data = self.forms.forms().get(formId=file_id).execute()
-                    return self._create_word_from_form(form_data), f"{sanitize_filename(name)}_form.docx"
-                req = self.drive.files().export_media(fileId=file_id, mimeType=exp['mime'])
-            else:
-                req = self.drive.files().get_media(fileId=file_id)
+        max_retries = 3
+        attempt = 0
+        while attempt < max_retries:
+            try:
+                if mime in GOOGLE_EXPORT_FORMATS:
+                    exp = GOOGLE_EXPORT_FORMATS[mime]
+                    if mime == 'application/vnd.google-apps.form':
+                        form_data = self.forms.forms().get(formId=file_id).execute()
+                        return self._create_word_from_form(form_data), f"{sanitize_filename(name)}_form.docx"
+                    req = self.drive.files().export_media(fileId=file_id, mimeType=exp['mime'])
+                else:
+                    req = self.drive.files().get_media(fileId=file_id)
 
-            fh = io.BytesIO()
-            downloader = MediaIoBaseDownload(fh, req)
-            done = False
-            while not done:
-                _, done = downloader.next_chunk()
-            fh.seek(0)
-            ext = exp['ext'] if mime in GOOGLE_EXPORT_FORMATS else None
-            filename = f"{sanitize_filename(name)}.{ext}" if ext else sanitize_filename(name)
-            return fh, filename
+                fh = io.BytesIO()
+                downloader = MediaIoBaseDownload(fh, req)
+                done = False
+                while not done:
+                    _, done = downloader.next_chunk()
+                fh.seek(0)
 
-        except Exception as e:
-            self.logger.error("Error al descargar %s: %s", name, e)
-            self.last_error = e  
-            return None, name
+                ext = exp['ext'] if mime in GOOGLE_EXPORT_FORMATS else None
+                filename = f"{sanitize_filename(name)}.{ext}" if ext else sanitize_filename(name)
+                return fh, filename
+
+            except Exception as e:
+                raw = str(e).lower()
+                # Si es un timeout o error 500 o SSL, reintenta
+                if any(keyword in raw for keyword in ("timed out", "timeout", "500", "ssl")):
+                    attempt += 1
+                    backoff = 2 ** attempt
+                    self.logger.warning("Reintentando descarga de '%s' (intento %d/%d) tras error: %s", name, attempt, max_retries, e)
+                    time.sleep(backoff)
+                    continue
+                # Si es exportSizeLimitExceeded o permiso insuficiente, no reintenta
+                self.logger.error("Error irreparable al descargar '%s': %s", name, e)
+                self.last_error = e
+                return None, name
+
+        # Si agotó reintentos
+        self.last_error = Exception("Tiempo de espera agotado tras varios intentos.")
+        return None, name
+
 
         
     """
