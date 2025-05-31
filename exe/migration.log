@@ -1,0 +1,14 @@
+2025-05-30 08:06:43,388 — INFO — Token de OneDrive obtenido
+2025-05-30 08:06:43,389 — INFO — Iniciando migración...
+2025-05-30 08:06:44,959 — INFO — Descarga Prueba de permisos: 0.73s
+2025-05-30 08:06:45,658 — INFO — Subida   Prueba de permisos: 0.70s
+2025-05-30 08:06:46,619 — INFO — Descarga Evaluación Diagnostica: 0.95s
+2025-05-30 08:06:47,657 — INFO — Subida   Evaluación Diagnostica: 1.04s
+2025-05-30 08:06:48,057 — INFO — Descarga Formulario que cree yo desde mi cuenta: 0.40s
+2025-05-30 08:06:48,931 — INFO — Subida   Formulario que cree yo desde mi cuenta: 0.87s
+2025-05-30 08:06:49,445 — INFO — Descarga Prueba formulario: 0.51s
+2025-05-30 08:06:50,297 — INFO — Subida   Prueba formulario: 0.85s
+2025-05-30 08:06:50,989 — INFO — Descarga dos: 0.69s
+2025-05-30 08:06:51,614 — INFO — Subida   dos: 0.62s
+2025-05-30 08:06:52,814 — INFO — Descarga Migracion: 1.20s
+2025-05-30 08:06:54,082 — INFO — Subida   Migracion: 1.27s

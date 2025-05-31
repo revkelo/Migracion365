@@ -12,25 +12,30 @@ import os
 import threading
 import customtkinter as ctk
 import tkinter.messagebox as mb
-from PIL import Image, ImageTk
+import threading
+from PIL import Image
+from google_service import GoogleService
 from migrator import DirectMigrator, MigrationCancelled,ConnectionLost
 from onedrive_service import OneDriveTokenExpired
 from archivo import ErrorApp
-from utils import resource_path
-
+from utils import ruta_absoluta
 
 """
-    Clase principal de la GUI para la aplicación Migrador365.
+Clase principal de la GUI para la aplicación Migrador365.
 
-    Atributos:
-        WINDOW_SIZE (str): Tamaño de la ventana en formato "<ancho>x<alto>".
-        BUTTON_SIZE (tuple): Dimensiones de los botones (ancho, alto).
-        ICON_SIZE (tuple): Tamaño de los iconos (ancho, alto).
-        COLORS (dict): Colores usados en la interfaz.
-        error_win (ErrorApp | None): Ventana de errores, si está abierta.
-        _cancel_event (threading.Event): Evento para señalizar cancelación.
-        _last_size_mb (float): Último tamaño de archivo calculado en MB.
-        _ui_started (bool): Controla si ya se mostró el botón "Cancelar".
+Atributos:
+    WINDOW_SIZE (str): Tamaño de la ventana en formato "<ancho>x<alto>".
+    BUTTON_SIZE (tuple): Dimensiones de los botones (ancho, alto).
+    ICON_SIZE (tuple): Tamaño de los íconos (ancho, alto).
+    COLORS (dict): Colores usados en la interfaz.
+    error_win (ErrorApp | None): Ventana de errores, si está abierta.
+    _cancel_event (threading.Event): Evento para señalizar cancelación.
+    _last_size_mb (float): Último tamaño de archivo calculado en MB.
+    _ui_started (bool): Controla si ya se mostró el botón "Cancelar".
+    _google_auth_url (str | None): URL de autenticación de Google (temporal).
+    _google_flow: Objeto de flujo OAuth de Google (si se usa).
+    boton_reabrir_link: Widget para reabrir enlace de autenticación (si se quiere).
+    _auth_url (str | None): URL genérica de autenticación (por ejemplo, Google o OneDrive).
 """
 class MigrationApp(ctk.CTk):
     WINDOW_SIZE = "800x250"
@@ -46,23 +51,28 @@ class MigrationApp(ctk.CTk):
     }
     
     """
-        Inicializa la ventana principal, carga iconos y crea widgets.
+    Inicializa la ventana principal, carga iconos y crea widgets.
 
-        - Configura la apariencia, tamaño y posición de la ventana.
-        - Carga iconos de Google Drive y OneDrive.
-        - Construye los widgets de control (botones, labels, progressbar).
+    - Crea instancias de variables de estado.
+    - Carga íconos de Google Drive y OneDrive.
+    - Llama a _create_widgets para construir la UI.
+    - Centra la ventana y muestra un mensaje de bienvenida.
     """
     def __init__(self):
         super().__init__()
         self.error_win = None
         self.title("Migracion365")
-
+        self._google_auth_url = None    
+        self._google_flow = None      
+        self.boton_reabrir_link = None 
         self._cancel_event = threading.Event()
+        self._is_running = False
+        self._auth_url = None
         self._last_size_mb = 0.0
         self._ui_started = False
 
         ctk.set_appearance_mode("light")
-        ico_path = resource_path("gui/assets/icono.ico")
+        ico_path = ruta_absoluta("gui/assets/icono.ico")
         if os.path.exists(ico_path):
             try:
                 self.iconbitmap(ico_path)
@@ -73,18 +83,21 @@ class MigrationApp(ctk.CTk):
         self.resizable(False, False)
         self.configure(fg_color=self.COLORS['background'])
 
-        self.google_icon = self._load_icon(resource_path("gui/assets/googledrive.png"))
-        self.onedrive_icon = self._load_icon(resource_path("gui/assets/onedrive.png"))
+        self.google_icon = self.cargar_icono(ruta_absoluta("gui/assets/googledrive.png"))
+        self.onedrive_icon = self.cargar_icono(ruta_absoluta("gui/assets/onedrive.png"))
 
-        self._create_widgets()
-        self.after(0, self._center_window)
-        self.after(200, self._show_welcome_message) 
+        self.crear_widgets()
+        self.after(0, self._centrar_ventana)
+        self.after(200, self.mensaje_bienvenida) 
 
         
     """
-        Centra la ventana en la pantalla según WINDOW_SIZE.
+    Centra la ventana en la pantalla según WINDOW_SIZE.
+
+    Calcula el offset (x, y) basado en el tamaño real de pantalla
+    y el tamaño deseado de la ventana.
     """
-    def _center_window(self):
+    def _centrar_ventana(self):
         width, height = map(int, self.WINDOW_SIZE.split('x'))
         sw = self.winfo_screenwidth()
         sh = self.winfo_screenheight()
@@ -92,8 +105,10 @@ class MigrationApp(ctk.CTk):
         y = (sh - height) // 2
         self.geometry(f"{width}x{height}+{x}+{y}")
 
-
-    def _show_welcome_message(self):
+    """
+    Mensaje de bienvenida al iniciar el aplicativo
+    """
+    def mensaje_bienvenida(self):
         mb.showinfo(
             "Bienvenido",
             "Bienvenido a Migracion365\n\n"
@@ -105,18 +120,17 @@ class MigrationApp(ctk.CTk):
         )
 
 
-
-
     """
-        Intenta cargar una imagen y convertirla en CTkImage.
+    Intenta cargar una imagen desde disco y convertirla en CTkImage.
 
-        Args:
-            path (str): Ruta al archivo de imagen.
+    Args:
+        path (str): Ruta al archivo de imagen.
 
-        Returns:
-            CTkImage: Imagen cargada o un placeholder transparente.
+    Returns:
+        CTkImage: Imagen cargada o un placeholder transparente
+                    si ocurre algún error.
     """
-    def _load_icon(self, path):
+    def cargar_icono(self, path):
         try:
             img = Image.open(path)
             return ctk.CTkImage(img, size=self.ICON_SIZE)
@@ -127,12 +141,15 @@ class MigrationApp(ctk.CTk):
 
 
     """
-        Construye y posiciona todos los widgets de la interfaz.
+    Construye y posiciona todos los widgets de la interfaz.
 
-        - Botones: Iniciar, Cancelar, Ver archivos problemáticos.
-        - Barra de progreso y labels de estado y tamaño.
+    - status_lbl: Label para mostrar mensajes de estado.
+    - size_lbl: Label para mostrar el tamaño actual de archivo.
+    - ProgressBar: Barra de progreso con iconos de Google Drive y OneDrive.
+    - Buttons: Iniciar, Cancelar y Ver archivos problemáticos.
+    - auth_url_lbl: Label informativo para reautenticación.
     """
-    def _create_widgets(self):
+    def crear_widgets(self):
 
         self.status_lbl = ctk.CTkLabel(self, text="Oprime iniciar...", text_color=self.COLORS['text'])
         self.status_lbl.pack(pady=(10, 0))
@@ -169,30 +186,53 @@ class MigrationApp(ctk.CTk):
         self.start_btn = ctk.CTkButton(
             btn_frame, text="Iniciar",
             fg_color=self.COLORS['primary'], hover_color=self.COLORS['primary_hover'],
-            command=self.start_migration, width=self.BUTTON_SIZE[0], height=self.BUTTON_SIZE[1]
+            command=self.iniciar_migracion, width=self.BUTTON_SIZE[0], height=self.BUTTON_SIZE[1]
         )
         self.start_btn.grid(row=0, column=0, padx=5)
 
         self.cancel_btn = ctk.CTkButton(
             btn_frame, text="Cancelar",
             fg_color="#636363", hover_color="#030303",
-            command=self.cancel_migration, width=self.BUTTON_SIZE[0], height=self.BUTTON_SIZE[1]
+            command=self.cancelar_migracion, width=self.BUTTON_SIZE[0], height=self.BUTTON_SIZE[1]
         )
         self.cancel_btn.grid(row=0, column=1, padx=5)
         self.cancel_btn.grid_remove()
-
+        
+        self.auth_url_lbl = ctk.CTkLabel(
+            self,
+            text="Reinicia la aplicación si no autenticaste correctamente",
+            text_color="#000000",
+            fg_color="#E5F0FF",
+            corner_radius=8,
+            padx=2,
+            pady=2,
+            wraplength=1000,
+            justify="center"
+        )
+        self.auth_url_lbl.place_forget()
 
 
     """
-        Inicia el proceso de migración en un hilo separado.
+    Inicia el proceso de migración en un hilo separado.
 
-        - Cierra ventana de errores si está abierta.
-        - Limpia archivos temporales y registros previos.
-        - Configura la UI (botones, estado, progreso).
-        - Inicia animación de pulso y lanza el hilo de migración.
+    Pasos:
+    1. Si ya está corriendo, retorna sin hacer nada.
+    2. Cierra ventana de errores si existe.
+    3. Limpia archivos de token y progreso previos.
+    4. Configura la UI: deshabilita "Iniciar", oculta botón de errores,
+        muestra "Cancelar" cuando corresponda.
+    5. Cambia la barra de progreso a modo indeterminado y la inicia.
+    6. Crea un hilo daemonizado que ejecuta _run_thread().
+    7. Muestra el label de reautenticación (auth_url_lbl).
     """
-    def start_migration(self):
 
+        
+    def iniciar_migracion(self):
+
+        if self._is_running:
+            return
+
+        self._is_running = True
         if self.error_win and self.error_win.winfo_exists():
             self.error_win.destroy()
             self.error_win = None
@@ -234,40 +274,45 @@ class MigrationApp(ctk.CTk):
         self.size_lbl.configure(text="Tamaño: —")
 
         self.progress.configure(mode="indeterminate")
+
+
+
         self.progress.start()
         self._is_indeterminate = True
-        self._start_pulse()
-        thread = threading.Thread(target=self._run_thread, daemon=True)
+        self.pulsos_carga()
+        thread = threading.Thread(target=self._run_hilo, daemon=True)
         thread.start()
+        self.auth_url_lbl.place(relx=0.5, rely=0.90, anchor="center")
 
 
     """
-        Señaliza la cancelación y restablece la UI.
+    Señaliza la cancelación de la migración y restablece la UI.
 
-        - Establece el evento de cancelación.
-        - Elimina archivos de progreso y token.
-        - Llama a _reset_ui para actualizar la interfaz.
+    - Establece el evento de cancelación (self._cancel_event.set()).
+    - Elimina archivos de token (token.pickle) para reiniciar autenticación.
+    - Llama a _reset_ui usando after(0) para asegurar que la UI se actualice
+        en el hilo principal de Tkinter.
     """
-    def cancel_migration(self):
+    def cancelar_migracion(self):
 
         self._cancel_event.set()
-        for f in ["migration_progress.json", "token.pickle"]:
+        for f in [ "token.pickle"]:
             try:
                 if os.path.exists(f): os.remove(f)
             except Exception:
                 pass
-        self.after(0, self._reset_ui)
+        self.after(0, self.resetear_ui)
 
 
     """
-        Restablece los widgets de UI tras cancelación.
+    Restablece los widgets de UI tras cancelación o error.
 
-        - Detiene animación y configura progressbar a determinate.
-        - Oculta botón Cancelar y habilita Iniciar.
-        - Actualiza labels de estado y tamaño.
-        - Resetea flag _ui_started.
+    - Detiene animación de progressbar y cambia a modo determinate.
+    - Oculta el botón Cancelar, habilita el botón Iniciar.
+    - Actualiza labels de estado y tamaño.
+    - Resetea el flag _ui_started para futuros procesos.
     """
-    def _reset_ui(self):
+    def resetear_ui(self):
         try:
             self.progress.stop()
         except Exception:
@@ -286,10 +331,12 @@ class MigrationApp(ctk.CTk):
 
 
     """
-        Abre la ventana de errores si existe un registro.
+    Abre la ventana de errores (ErrorApp) si existe un registro de errores.
 
-        - Muestra mensaje si no hay errores.
-        - Si ya está abierta, la eleva; si no, crea una nueva.
+    - Verifica que DirectMigrator.ERROR_LOG exista y no esté vacío.
+    - Si no hay errores, muestra un messagebox informativo.
+    - Si ya está abierta la ventana de errores, la trae al frente (lift).
+    - Si no está abierta, crea una nueva instancia de ErrorApp.
     """
     def open_error_log(self):
         log = DirectMigrator.ERROR_LOG
@@ -309,27 +356,41 @@ class MigrationApp(ctk.CTk):
         
 
     """
-        Hilo de ejecución que llama a DirectMigrator.migrate().
+    Hilo de ejecución que llama a DirectMigrator.migrate().
 
-        - Define callbacks on_global y on_file para actualizar la UI.
-        - Gestiona excepciones de cancelación y finalización.
+    - Define callbacks on_global y on_file para actualizar la UI.
+    - Gestiona excepciones de OneDriveTokenExpired, ConnectionLost o MigrationCancelled.
+    - Al finalizar, restablece el flag _is_running y, si fue exitoso, llama a _on_complete.
     """
-    def _run_thread(self):
-        migrator = DirectMigrator(
-            onedrive_folder="",
-            cancel_event=self._cancel_event
-        )
+    def _run_hilo(self):
 
-        def on_global(proc, total, name):
+        """
+        Callback para progreso global.
+
+        Args:
+            proc (int): Cantidad de elementos migrados hasta el momento.
+            total (int): Total de elementos a migrar.
+            name (str): Nombre del archivo o carpeta actual.
+        """
+        def en_general(proc, total, name):
             if self._cancel_event.is_set():
                 return
             if not self._ui_started:
                 self.after(0, self.cancel_btn.grid)
                 self._ui_started = True
             pct = proc / total
-            self.after(0, lambda: self._update_global(pct, name))
+            self.after(0, lambda: self._subida_global(pct, name))
 
-        def on_file(sent, total_bytes, name):
+
+        """
+        Callback para progreso de archivo individual.
+
+        Args:
+            sent (int): Bytes enviados hasta el momento.
+            total_bytes (int): Tamaño total del archivo en bytes.
+            name (str): Nombre del archivo.
+        """
+        def en_archivo(sent, total_bytes, name):
             if self._cancel_event.is_set():
                 raise MigrationCancelled()
             pctf = sent / total_bytes
@@ -339,11 +400,19 @@ class MigrationApp(ctk.CTk):
             text = f"Subiendo '{name}': {pctf*100:.0f}%"
             self.after(0, lambda: self.status_lbl.configure(text=text))
 
-        try:
-            migrator.migrate(
+        try: 
+            
+            self.auth_url_lbl.place(relx=0.5, rely=0.90, anchor="center")
+            migrator = DirectMigrator(
+                onedrive_folder="",
+                cancel_event=self._cancel_event,
+                status_callback=lambda text: self.after(0, lambda: self.status_lbl.configure(text=text))
+            )
+            self.auth_url_lbl.place_forget()
+            migrator.migrar(
                 skip_existing=True,
-                progress_callback=on_global,
-                file_progress_callback=on_file
+                progress_callback=en_general,
+                file_progress_callback=en_archivo
             )
             
         except OneDriveTokenExpired as e:
@@ -355,30 +424,34 @@ class MigrationApp(ctk.CTk):
 
             return
         except ConnectionLost as e:
-            # Alertamos al usuario y restablecemos la UI
+ 
             self.after(0, lambda: mb.showerror(
                 "Conexión perdida",
                 f"Se perdió la conexión a Internet:\n{e}"
             ))
-            self.after(0, self._reset_ui)
+            self.after(0, self.resetear_ui)
             return
         except MigrationCancelled:
-            self.after(0, self._reset_ui)
+            mb.showwarning("Migracion365", "Migración cancelada")
+            self.after(0, self.resetear_ui)
             return
+        
+        finally:
+            self._is_running = False
         
 
         if not self._cancel_event.is_set():
-            self.after(0, self._on_complete)
+            self.after(0, self._completado)
 
 
     """
-        Actualiza la progressbar y el label global.
+    Actualiza la barra de progreso global y el label de estado.
 
-        Args:
-            pct (float): Porcentaje completado (0.0 a 1.0).
-            name (str): Nombre del archivo o lote actual.
+    Args:
+        pct (float): Porcentaje completado (0.0 a 1.0).
+        name (str): Nombre del archivo o lote actual.
     """
-    def _update_global(self, pct, name):
+    def _subida_global(self, pct, name):
         if self.progress.cget('mode') == 'indeterminate':
             self.progress.stop()
             self.progress.configure(mode="determinate")
@@ -387,40 +460,46 @@ class MigrationApp(ctk.CTk):
         self.progress.set(pct)
         self.status_lbl.configure(text=f"Migrando: {name} ({pct*100:.0f}%)")
         
-
-
     """
-        Lógica a ejecutar cuando la migración finaliza correctamente.
+    Lógica a ejecutar cuando la migración finaliza correctamente.
 
-        - Detiene animación, muestra botón de errores si existen.
-        - Muestra un mensaje de información y habilita el botón Iniciar.
+    - Detiene animación de progressbar.
+    - Muestra el botón de errores si el log de errores no está vacío.
+    - Muestra un messagebox informativo.
+    - Habilita nuevamente el botón "Iniciar" y resetea labels.
     """
-    def _on_complete(self):
+    def _completado(self):
         if self.progress.cget('mode') == 'indeterminate':
             self.progress.stop()
         self.progress.set(1)
         self.cancel_btn.grid_remove()
-        self._stop_pulse()
+        self._parar_pulso()
         self.status_lbl.configure(text="Oprime iniciar...")
         self.size_lbl.configure(text="Tamaño: —")
         log = DirectMigrator.ERROR_LOG
         if os.path.exists(log) and os.path.getsize(log) > 0:
             self.error_btn.place(relx=1.0, rely=1.0, x=-10, y=-10, anchor='se')
-        mb.showinfo("Migración", "Transferencia finalizada. Revisa tu OneDrive.")
+        mb.showinfo("Migracion365", "Transferencia finalizada. Revisa tu OneDrive.")
         self.start_btn.configure(state="normal")
         
     """
-        Inicia la animación pulsante en la progressbar.
+    Inicia la animación pulsante en la progressbar.
+
+    - Cambia el flag _pulsing a True.
+    - Llama inmediatamente a _pulse para alternar colores.
     """
-    def _start_pulse(self):
+    def pulsos_carga(self):
         self._pulsing = True
-        self.after(0, self._pulse)
+        self.after(0, self._pulso)
 
 
     """
-        Alterna el color de la progressbar cada 300 ms mientras _pulsing sea True.
+    Alterna el color de la progressbar cada 300 ms mientras _pulsing sea True.
+
+    - Si current color es 'primary', lo cambia a 'primary_light', y viceversa.
+    - Utiliza after(300) para llamar recursivamente.
     """
-    def _pulse(self):
+    def _pulso(self):
 
         if not self._pulsing:
             return
@@ -431,12 +510,12 @@ class MigrationApp(ctk.CTk):
             else self.COLORS['primary']
         )
         self.progress.configure(progress_color=new_color)
-        self.after(300, self._pulse)
+        self.after(300, self._pulso)
 
     """
         Detiene la animación de pulso y restaura el color original.
     """
-    def _stop_pulse(self):
+    def _parar_pulso(self):
         self._pulsing = False
         self.progress.configure(progress_color=self.COLORS['primary'])
 

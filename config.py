@@ -28,7 +28,7 @@ Configuración de OAuth para OneDrive:
 """
 ONEDRIVE_CLIENT_ID   = "d8227c52-3dde-4198-81a8-60f1347357ab"
 ONEDRIVE_AUTHORITY   = "https://login.microsoftonline.com/common"
-ONEDRIVE_SCOPES      = ["Files.ReadWrite.All"]
+ONEDRIVE_SCOPES      = ["Files.ReadWrite.All", "User.Read"]
 
 """
 Define tamaños para la transferencia de archivos:
