@@ -269,22 +269,12 @@ class DirectMigrator:
         progress_callback: Optional[Callable[[int, int, str], None]]
     ):
         """
-        Método privado que:
-        - Lista Unidades Compartidas, filtra por organizer.
-        - Por cada archivo exportable dentro de cada unidad:
-            * Si cancel_event está seteado, retorna inmediatamente.
-            * Si ya está migrado (skip_existing), lo omite sin imprimir nada.
-            * Descarga/exporta y sube a OneDrive.
-            * Incrementa `processed` y llama a progress_callback.
-            * Registra el ID en el JSON de progreso para evitar duplicados.
+        ...
         """
-
         usuario_actual = self.google.usuario
         unidades = self.google.listar_unidades_compartidas()
 
-        # --- Inicio del bucle sobre cada Unidad Compartida ---
         for unidad in unidades:
-            # 1) VERIFICACIÓN: si el usuario ya presionó "Cancelar", salimos YA
             if self.cancel_event and self.cancel_event.is_set():
                 self.logger.info(
                     "Migración cancelada por usuario (antes de procesar unidad compartida)"
@@ -300,15 +290,11 @@ class DirectMigrator:
             if usuario_actual not in admins:
                 continue
 
-            # Nombre de la unidad compartida (sanitizado para OneDrive)
             nombre_unidad = sanitize_filename(unidad['name'])
             ruta_onedrive = f"Unidades Compartidas/{nombre_unidad}"
-            # Creamos la carpeta raíz de esta unidad en OneDrive
             self.one.create_folder(ruta_onedrive)
 
-            # Listamos todo el contenido (archivos + carpetas) de la unidad
             archivos = self.google.listar_contenido_drive(unidad['id'])
-            # Mapas de carpetas y archivos exportables
             folders_dict = {
                 a['id']: a for a in archivos
                 if a['mimeType'] == 'application/vnd.google-apps.folder'
@@ -318,9 +304,7 @@ class DirectMigrator:
                 if a['mimeType'] in GOOGLE_EXPORT_FORMATS
             }
 
-            # --- Bucle sobre cada archivo exportable en la unidad ---
             for archivo in archivos_dict.values():
-                # 2) VERIFICACIÓN: si cancel_event se activó durante el bucle de archivos, retornamos
                 if self.cancel_event and self.cancel_event.is_set():
                     self.logger.info(
                         f"Migración cancelada por usuario (en unidad compartida '{nombre_unidad}')"
@@ -331,14 +315,12 @@ class DirectMigrator:
                 file_name = archivo['name']
                 parents = archivo.get('parents') or []
 
-                # CHEQUEO: si ya está migrado, lo omitimos sin imprimir
                 if file_id in self.progress.get('migrated_files', set()):
                     processed += 1
                     if progress_callback:
                         progress_callback(processed, total_tasks, file_name)
                     continue
 
-                # Reconstruir ruta interna dentro de la unidad compartida
                 if parents:
                     path_parts = self.google.get_folder_path(parents[0], folders_dict)
                 else:
@@ -346,22 +328,17 @@ class DirectMigrator:
                 ruta_interna = "/".join(path_parts)
                 ruta_completa = f"{ruta_onedrive}/{ruta_interna}".strip("/")
 
-                # Crear carpetas intermedias en OneDrive si hace falta
                 if ruta_completa:
                     self.one.create_folder(ruta_completa)
 
                 try:
-                    # Descarga/Exportación desde Google Drive
                     data, final_name = self.google.download_file(archivo)
                     if data:
-                        # Medimos tamaño para la subida
                         data.seek(0, 2)
                         total_bytes = data.tell()
                         data.seek(0)
 
-                        # Definir ruta remota en OneDrive
                         remote_path = f"{ruta_completa}/{final_name}".strip("/")
-                        # Subimos sin callback de progreso por archivo (o puedes agregar uno si lo deseas)
                         self.one.upload(
                             file_data=data,
                             remote_path=remote_path,
@@ -371,25 +348,35 @@ class DirectMigrator:
                             f"Compartido - Subida '{file_name}' en '{ruta_completa}'"
                         )
 
-                        # Marcar archivo como migrado y guardar progreso
+                        # Marcar como migrado y guardar progreso
                         self.progress.setdefault('migrated_files', set()).add(file_id)
                         save_progress(PROGRESS_FILE, self.progress)
 
                 except Exception as e:
                     mensaje = str(e)
+
+                    # 1) Registrar en el logger de la clase
                     self.logger.error(
                         f"Error al migrar archivo '{file_name}' en '{ruta_completa}': {mensaje}"
                     )
-                    # Si es un error de red severo, lanzar ConnectionLost
+
+                    # 2) ***Añadir escritura en el fichero de errores***
+                    #     Para que quede guardado en migration_errors.txt
+                    #     Usamos el método _log_error con la ruta y mensaje
+                    drive_path = f"{ruta_completa}/{file_name}"
+                    self._log_error(drive_path, mensaje)
+
+                    # 3) Si es un error crítico de red, propagamos ConnectionLost
                     if "timed out" in mensaje.lower() or "unable to find the server" in mensaje.lower():
                         raise ConnectionLost(mensaje)
-                    # En otros casos, solo imprimimos el error
-                    print(f"[ERROR] En Unidad Compartida '{ruta_completa}/{file_name}' → {mensaje}")
 
-                # Actualizar contador y progreso global
+                    # 4) Además lo mostramos en consola (o GUI) para feedback inmediato
+                    print(f"[ERROR] En Unidad Compartida '{drive_path}' → {mensaje}")
+
                 processed += 1
                 if progress_callback:
                     progress_callback(processed, total_tasks, file_name)
+
 
 
 
