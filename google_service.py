@@ -24,6 +24,10 @@ from utils import sanitize_filename
 
 KEY = b"HG5GHGW3o9bMUMWUmz7khGjhELzFUJ9W-52s_ZnIC40="
 
+
+
+
+
 """
 Carga el blob cifrado desde archivo.
 
@@ -72,6 +76,7 @@ class GoogleService:
         self.encrypted_credentials = encrypted_credentials
         self.token_path = token_path
         self.drive = None
+        self.usuario = None
         self.forms = None
         self.logger = logging.getLogger(self.__class__.__name__)
         self._setup_services()
@@ -117,6 +122,97 @@ class GoogleService:
         self.drive = build('drive', 'v3', credentials=creds)
         self.forms = build('forms', 'v1', credentials=creds)
         self.logger.info("APIs de Drive y Forms listas para usarse")
+        
+        # Obtener y guardar el correo del usuario autenticado
+        try:
+            about = self.drive.about().get(fields="user").execute()
+            self.usuario = about['user']['emailAddress']
+            self.logger.info("Usuario autenticado: %s", self.usuario)
+        except Exception as e:
+            self.usuario = None
+            self.logger.error("No se pudo obtener el usuario autenticado: %s", e)
+
+
+
+    def rol_espanol(self, rol: str) -> str:
+        equivalencias = {
+            "organizer": "Administrador",
+            "fileOrganizer": "Gestor de contenido",
+            "writer": "Colaborador",
+            "commenter": "Comentarista",
+            "reader": "Lector"
+        }
+        return equivalencias.get(rol, "Desconocido")
+
+
+
+    def listar_unidades_compartidas(self):
+        unidades = []
+        page_token = None
+        while True:
+            res = self.drive.drives().list(
+                pageSize=100,
+                pageToken=page_token,
+                fields="nextPageToken, drives(id, name)"
+            ).execute()
+            unidades.extend(res.get("drives", []))
+            page_token = res.get("nextPageToken")
+            if not page_token:
+                break
+        return unidades
+
+
+
+    def listar_permisos(self, file_id: str):
+        permisos = []
+        page_token = None
+        while True:
+            res = self.drive.permissions().list(
+                fileId=file_id,
+                supportsAllDrives=True,
+                pageSize=100,
+                pageToken=page_token,
+                fields="nextPageToken, permissions(id, type, role, emailAddress, domain)"
+            ).execute()
+            permisos.extend(res.get("permissions", []))
+            page_token = res.get("nextPageToken")
+            if not page_token:
+                break
+        return permisos
+
+
+    def listar_contenido_drive(self, drive_id: str):
+        archivos = []
+        page_token = None
+        while True:
+            res = self.drive.files().list(
+                corpora='drive',
+                driveId=drive_id,
+                includeItemsFromAllDrives=True,
+                supportsAllDrives=True,
+                q="trashed = false",
+                pageSize=1000,
+                pageToken=page_token,
+                fields="nextPageToken, files(id, name, mimeType)"
+            ).execute()
+            archivos.extend(res.get("files", []))
+            page_token = res.get("nextPageToken")
+            if not page_token:
+                break
+        return archivos
+
+
+    def obtener_usuario(self) -> str:
+        """
+        Obtiene el correo electrónico del usuario autenticado en Google Drive.
+        """
+        try:
+            about = self.drive.about().get(fields="user").execute()
+            return about['user']['emailAddress']
+        except Exception as e:
+            self.logger.error("No se pudo obtener el usuario: %s", e)
+            return ""
+
 
     """
     Lista todos los archivos y carpetas en Drive.

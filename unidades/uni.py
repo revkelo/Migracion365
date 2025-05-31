@@ -1,6 +1,7 @@
 import os
 import sys
 import json
+import re
 from cryptography.fernet import Fernet
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
@@ -10,18 +11,23 @@ from googleapiclient.discovery import build
 # ---------------------------------------------------------------
 # Configuración de cifrado y OAuth2
 # ---------------------------------------------------------------
-KEY           = b"HG5GHGW3o9bMUMWUmz7khGjhELzFUJ9W-52s_ZnIC40="
+KEY = b"HG5GHGW3o9bMUMWUmz7khGjhELzFUJ9W-52s_ZnIC40="
 ENC_CRED_FILE = 'credentials.json.enc'
 TOKEN_FILE    = 'token.json'
-SCOPES        = [
-    'https://www.googleapis.com/auth/drive',
-    'https://www.googleapis.com/auth/drive.metadata.readonly',
-    'https://www.googleapis.com/auth/drive.readonly',
-    'https://www.googleapis.com/auth/drive.activity.readonly'
-]
+SCOPES        = ['https://www.googleapis.com/auth/drive']
+
+# ---------------------------------------------------------------
+# Equivalencias de roles en español
+# ---------------------------------------------------------------
+ROL_ES = {
+    "organizer": "Administrador",
+    "fileOrganizer": "Gestor de contenido",
+    "writer": "Colaborador",
+    "commenter": "Comentarista",
+    "reader": "Lector"
+}
 
 def _load_encrypted_blob(filename: str = ENC_CRED_FILE) -> bytes:
-    """Carga el blob cifrado (compatible con PyInstaller)."""
     if getattr(sys, 'frozen', False):
         base = sys._MEIPASS
     else:
@@ -33,14 +39,12 @@ def _load_encrypted_blob(filename: str = ENC_CRED_FILE) -> bytes:
         return f.read()
 
 def _load_credentials(filename: str = ENC_CRED_FILE) -> dict:
-    """Descifra el blob y retorna el JSON de credenciales OAuth2."""
     blob = _load_encrypted_blob(filename)
     f = Fernet(KEY)
     plaintext = f.decrypt(blob)
     return json.loads(plaintext)
 
 def obtener_credenciales() -> Credentials:
-    """Carga o genera credenciales OAuth2 y las guarda en TOKEN_FILE."""
     creds = None
     if os.path.exists(TOKEN_FILE):
         creds = Credentials.from_authorized_user_file(TOKEN_FILE, SCOPES)
@@ -56,13 +60,13 @@ def obtener_credenciales() -> Credentials:
     return creds
 
 # ---------------------------------------------------------------
-# Funciones para Shared Drives, permisos, contenido y creador
+# Funciones para Drive
 # ---------------------------------------------------------------
-def listar_unidades_compartidas(drive_svc):
+def listar_unidades_compartidas(service):
     drives = []
     page_token = None
     while True:
-        resp = drive_svc.drives().list(
+        resp = service.drives().list(
             pageSize=100,
             pageToken=page_token,
             fields="nextPageToken, drives(id, name)"
@@ -73,16 +77,16 @@ def listar_unidades_compartidas(drive_svc):
             break
     return drives
 
-def listar_permisos(drive_svc, drive_id):
+def listar_permisos(service, drive_id):
     perms = []
     page_token = None
     while True:
-        resp = drive_svc.permissions().list(
+        resp = service.permissions().list(
             fileId=drive_id,
             supportsAllDrives=True,
             pageSize=100,
             pageToken=page_token,
-            fields="nextPageToken, permissions(type, role, emailAddress, domain)"
+            fields="nextPageToken, permissions(id, type, role, emailAddress, domain)"
         ).execute()
         perms.extend(resp.get('permissions', []))
         page_token = resp.get('nextPageToken')
@@ -90,11 +94,11 @@ def listar_permisos(drive_svc, drive_id):
             break
     return perms
 
-def listar_contenido_drive(drive_svc, drive_id):
+def listar_contenido_drive(service, drive_id):
     items = []
     page_token = None
     while True:
-        resp = drive_svc.files().list(
+        resp = service.files().list(
             corpora='drive',
             driveId=drive_id,
             includeItemsFromAllDrives=True,
@@ -110,39 +114,25 @@ def listar_contenido_drive(drive_svc, drive_id):
             break
     return items
 
-def obtener_creador_unidad(activity_svc, drive_id):
-    """
-    Usa la Drive Activity API para obtener el creador original
-    de la Shared Drive especificada.
-    """
-    query_body = {
-        "ancestorName": f"items/{drive_id}",
-        "filter": "detail.action_detail_case:CREATE",
-        "pageSize": 1
-    }
-    resp = activity_svc.activity().query(body=query_body).execute()
-    activities = resp.get("activities", [])
-    if not activities:
-        return "Desconocido"
-    actor = activities[0]["actors"][0].get("user", {})
-    if "knownUser" in actor:
-        return actor["knownUser"].get("knownUser", {}).get("personName", "Desconocido")
-    elif "anonymous" in actor:
-        return "Anónimo"
-    else:
-        return actor.get("system", {}).get("system", "Sistema")
+def limpiar_nombre(nombre):
+    return re.sub(r'[\\/*?:"<>|]', "", nombre)
 
 # ---------------------------------------------------------------
 # Ejecución principal
 # ---------------------------------------------------------------
 if __name__ == '__main__':
-    # Borra token antiguo para renovar permisos si cambiaste scopes
-    if os.path.exists(TOKEN_FILE):
-        os.remove(TOKEN_FILE)
+    creds = obtener_credenciales()
+    drive_svc = build('drive', 'v3', credentials=creds)
 
-    creds        = obtener_credenciales()
-    drive_svc    = build('drive', 'v3', credentials=creds)
-    activity_svc = build('driveactivity', 'v2', credentials=creds)
+    try:
+        user_info = drive_svc.about().get(fields="user(emailAddress)").execute()
+        usuario_actual = user_info['user']['emailAddress']
+    except Exception as e:
+        print("❌ No se pudo obtener el correo del usuario autenticado.")
+        print(e)
+        sys.exit(1)
+
+    print(f"\n👤 Usuario autenticado: {usuario_actual}")
 
     unidades = listar_unidades_compartidas(drive_svc)
     if not unidades:
@@ -150,15 +140,48 @@ if __name__ == '__main__':
         sys.exit(0)
 
     for d in unidades:
-        print(f"\n=== Unidad Compartida: {d['name']} (ID: {d['id']}) ===")
-        print("Creada por:", obtener_creador_unidad(activity_svc, d['id']))
-
         permisos = listar_permisos(drive_svc, d['id'])
-        print("Permisos de acceso:")
-        for p in permisos:
-            who = p.get('emailAddress') or p.get('domain') or p['type']
-            print(f"  - {p['role']} ➜ {who}")
 
+        # Filtrar administradores
+        admins = [
+            p.get('emailAddress') or p.get('domain') or p['type']
+            for p in permisos if p['role'] == 'organizer'
+        ]
+
+        # Solo continuar si el usuario actual es administrador
+        if usuario_actual not in admins:
+            continue
+
+        nombre_unidad = limpiar_nombre(d['name'])
+        carpeta = os.path.join(os.getcwd(), nombre_unidad)
+        os.makedirs(carpeta, exist_ok=True)
+
+        print(f"\n=== Unidad Compartida: {d['name']} (ID: {d['id']}) ===")
+        print("Administradores:")
+        for admin in admins:
+            print(f"  - {admin}")
+
+        # Generar archivo acceso.txt
+        no_admins = [
+            (p.get('emailAddress') or p.get('domain') or p['type'])
+            for p in permisos if p['role'] != 'organizer'
+        ]
+        if no_admins:
+            with open(os.path.join(carpeta, "acceso.txt"), 'w', encoding='utf-8') as f:
+                f.write(",".join(no_admins))
+            print("  → acceso.txt generado")
+
+        # Generar archivo roles.txt simplificado
+        with open(os.path.join(carpeta, "roles.txt"), 'w', encoding='utf-8') as f:
+            f.write("Correo                          | Rol\n")
+            f.write("-------------------------------|----------------------\n")
+            for p in permisos:
+                correo = p.get('emailAddress') or p.get('domain') or p['type']
+                rol = ROL_ES.get(p['role'], "Desconocido")
+                f.write(f"{correo:<31}| {rol}\n")
+        print("  → roles.txt generado")
+
+        # Mostrar contenido
         contenido = listar_contenido_drive(drive_svc, d['id'])
         print(f"\nContenido ({len(contenido)} items):")
         for item in contenido:

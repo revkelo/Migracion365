@@ -317,10 +317,7 @@ class MigrationApp(ctk.CTk):
         - Gestiona excepciones de cancelación y finalización.
     """
     def _run_thread(self):
-        migrator = DirectMigrator(
-            onedrive_folder="",
-            cancel_event=self._cancel_event
-        )
+
 
         def on_global(proc, total, name):
             if self._cancel_event.is_set():
@@ -341,7 +338,12 @@ class MigrationApp(ctk.CTk):
             text = f"Subiendo '{name}': {pctf*100:.0f}%"
             self.after(0, lambda: self.status_lbl.configure(text=text))
 
-        try:
+        try: 
+            migrator = DirectMigrator(
+                onedrive_folder="",
+                cancel_event=self._cancel_event,
+                status_callback=lambda text: self.after(0, lambda: self.status_lbl.configure(text=text))
+            )
             migrator.migrate(
                 skip_existing=True,
                 progress_callback=on_global,
@@ -357,7 +359,7 @@ class MigrationApp(ctk.CTk):
 
             return
         except ConnectionLost as e:
-            # Alertamos al usuario y restablecemos la UI
+ 
             self.after(0, lambda: mb.showerror(
                 "Conexión perdida",
                 f"Se perdió la conexión a Internet:\n{e}"
@@ -365,6 +367,7 @@ class MigrationApp(ctk.CTk):
             self.after(0, self._reset_ui)
             return
         except MigrationCancelled:
+            mb.showwarning("Migracion365", "Migración cancelada")
             self.after(0, self._reset_ui)
             return
         
@@ -408,7 +411,7 @@ class MigrationApp(ctk.CTk):
         log = DirectMigrator.ERROR_LOG
         if os.path.exists(log) and os.path.getsize(log) > 0:
             self.error_btn.place(relx=1.0, rely=1.0, x=-10, y=-10, anchor='se')
-        mb.showinfo("Migración", "Transferencia finalizada. Revisa tu OneDrive.")
+        mb.showinfo("Migracion365", "Transferencia finalizada. Revisa tu OneDrive.")
         self.start_btn.configure(state="normal")
         
     """

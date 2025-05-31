@@ -43,6 +43,7 @@ class OneDriveService:
     def __init__(self):
         self.token = None
         self.logger = logging.getLogger("OneDriveService")
+        self.usuario = None 
         self._configure_logger()
         self.authenticate()
 
@@ -88,9 +89,20 @@ class OneDriveService:
         if "access_token" in result:
             self.token = result["access_token"]
             self.logger.info("Token de OneDrive obtenido")
+
+            try:
+                headers = {"Authorization": f"Bearer {self.token}"}
+                resp = requests.get("https://graph.microsoft.com/v1.0/me", headers=headers)
+                resp.raise_for_status()
+                self.usuario = resp.json().get("userPrincipalName", None)
+            except Exception as e:
+                self.usuario = None
+                self.logger.error("No se pudo obtener el usuario de OneDrive: %s", e)
+
         else:
             error = result.get("error_description", "desconocido")
             raise RuntimeError(f"Error obteniendo token de OneDrive: {error}")
+
 
     """
         Crea de forma iterativa la estructura de carpetas en OneDrive.

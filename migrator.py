@@ -19,6 +19,8 @@ from onedrive_service import OneDriveService
 import threading
 import re
 from config import GOOGLE_EXPORT_FORMATS
+from unidades import SharedDriveMigrator
+
 
 class MigrationCancelled(Exception):
     """Señaliza que el usuario ha cancelado el proceso de migración."""
@@ -34,13 +36,23 @@ class DirectMigrator:
     def __init__(
         self,
         onedrive_folder: str = '',
-        cancel_event: Optional[threading.Event] = None
+        cancel_event: Optional[threading.Event] = None,
+        status_callback: Optional[Callable[[str], None]] = None
+        
     ):
+        self.status_callback = status_callback
         self.onedrive_folder = onedrive_folder.strip('/')
         self.cancel_event   = cancel_event
-        self.google         = GoogleService()
-        self.one            = OneDriveService()
+        self._update_status("Autenticando con Google Drive...")
+        self.google = GoogleService()
+        self._update_status("Autenticando con OneDrive...")
+        self.one = OneDriveService()
+        self._update_status("Autenticación completa. Preparando migración...")
         self.progress       = load_progress(PROGRESS_FILE)
+        
+        correo_google = self.google.usuario
+        correo_onedrive = self.one.usuario
+
 
         self.logger = logging.getLogger('DirectMigrator')
         self.logger.setLevel(logging.INFO)
@@ -56,7 +68,16 @@ class DirectMigrator:
                 "%(asctime)s — %(levelname)s — %(message)s"
             ))
             self.logger.addHandler(fh)
+            
+        if correo_google != correo_onedrive:
+            self.logger.error("Los correos de Google y OneDrive no coinciden. Cancelando migración.")
+            raise MigrationCancelled("Los correos de autenticación no coinciden.")
+            
 
+    def _update_status(self, msg: str):
+        if self.status_callback:
+            self.status_callback(msg)
+            
     def migrate(
         self,
         skip_existing: bool = True,
@@ -64,20 +85,22 @@ class DirectMigrator:
         file_progress_callback: Optional[Callable[[int, int, str], None]] = None
     ):
         self.logger.info("Iniciando migración...")
-
+        self._update_status("Obtendiendo archivos de Google Drive...")
         folders, files, _ = self.google.list_files_and_folders()
+        self._update_status("Filtrando archivos de Google Drive...")
         entries = [
             f for f in files.values()
             if f['mimeType'] in GOOGLE_EXPORT_FORMATS
         ]
         total_files = len(entries)
+        
         processed = 0
 
         for info in entries:
             if self.cancel_event and self.cancel_event.is_set():
                 self.logger.info("Migración cancelada por usuario")
                 return
-
+           
             fid     = info['id']
             raw_name = info['name']
 
@@ -164,6 +187,16 @@ class DirectMigrator:
 
         if progress_callback:
             progress_callback(total_files, total_files, '')
+
+        try:
+            self.logger.info("Migrando Unidades Compartidas...")
+            from unidades import SharedDriveMigrator
+            shared = SharedDriveMigrator(self.google, self.one)
+            shared.migrar_unidades()
+            self.logger.info("Migración de Unidades Compartidas completada.")
+        except Exception as e:
+            self.logger.error(f"Error al migrar Unidades Compartidas: {str(e)}")
+
 
     def _log_error(self, drive_path: str, message: str) -> None:
         """Añade una entrada en el log de errores (una sola línea)."""
