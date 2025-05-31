@@ -7716,3 +7716,299 @@
 2025-05-30 23:25:20,012 — INFO — Iniciando migración de Unidades Compartidas...
 2025-05-30 23:25:27,732 — INFO — Compartido - Subida '4' en 'Unidades Compartidas/UNIDAD 0/level 1/Level 2'
 2025-05-30 23:25:27,740 — INFO — Migración de Unidades Compartidas completada.
+2025-05-31 00:19:33,730 — INFO — Token de OneDrive obtenido
+2025-05-31 00:19:34,185 — ERROR — Los correos de Google y OneDrive no coinciden. Cancelando migración.
+2025-05-31 00:21:03,106 — INFO — Token de OneDrive obtenido
+2025-05-31 00:21:03,506 — INFO — DirectMigrator inicializado correctamente.
+2025-05-31 00:21:03,506 — INFO — Obteniendo archivos exportables de 'Mi unidad'...
+2025-05-31 00:21:28,373 — INFO — Contando archivos exportables en Unidades Compartidas...
+2025-05-31 00:21:30,060 — INFO — Total de archivos a migrar: 483 (Mi unidad: 479, Unidades Compartidas: 4)
+2025-05-31 00:21:30,061 — INFO — Iniciando migración de 'Mi unidad'...
+2025-05-31 00:21:30,946 — INFO — Descarga 'Hoja de cálculo sin título': 0.89s
+2025-05-31 00:21:31,697 — INFO — Subida 'Hoja de cálculo sin título': 0.75s
+2025-05-31 00:21:33,123 — INFO — Descarga 'Sistemas Digitales_2025-1 (Mie-Jue)': 1.42s
+2025-05-31 00:21:34,138 — INFO — Subida 'Sistemas Digitales_2025-1 (Mie-Jue)': 1.01s
+2025-05-31 00:21:35,538 — INFO — Descarga 'guion de resolume corte 3': 1.40s
+2025-05-31 00:21:36,367 — INFO — Subida 'guion de resolume corte 3': 0.83s
+2025-05-31 00:21:37,583 — INFO — Descarga 'Evaluación Diagnostica': 1.21s
+2025-05-31 00:21:38,428 — INFO — Subida 'Evaluación Diagnostica': 0.84s
+2025-05-31 00:21:39,590 — INFO — Descarga 'PARCIAL': 1.16s
+2025-05-31 00:21:40,460 — INFO — Subida 'PARCIAL': 0.87s
+2025-05-31 00:21:42,586 — INFO — Descarga 'Avance de proyecto Final Tercer Corte': 2.12s
+2025-05-31 00:21:44,398 — INFO — Subida 'Avance de proyecto Final Tercer Corte': 1.81s
+2025-05-31 00:21:49,408 — INFO — Descarga 'Entrega final caso DEFSA - Kevin Gonzalez - Camilo Silva': 5.01s
+2025-05-31 00:21:51,782 — INFO — Subida 'Entrega final caso DEFSA - Kevin Gonzalez - Camilo Silva': 2.37s
+2025-05-31 00:21:53,925 — INFO — Descarga 'Formato opción Desarrollo Tecnológico COG': 2.14s
+2025-05-31 00:21:55,596 — INFO — Subida 'Formato opción Desarrollo Tecnológico COG': 1.67s
+2025-05-31 00:21:56,392 — INFO — Descarga 'Cronograma Tentativo1': 0.79s
+2025-05-31 00:21:57,037 — INFO — Subida 'Cronograma Tentativo1': 0.64s
+2025-05-31 00:21:59,123 — INFO — Descarga 'Contextualización del Caso de Uso DEFSA': 2.08s
+2025-05-31 00:22:01,687 — INFO — Subida 'Contextualización del Caso de Uso DEFSA': 2.56s
+2025-05-31 00:22:45,904 — INFO — Token de OneDrive obtenido
+2025-05-31 00:22:46,279 — INFO — DirectMigrator inicializado correctamente.
+2025-05-31 00:22:46,280 — INFO — Obteniendo archivos exportables de 'Mi unidad'...
+2025-05-31 00:23:13,747 — INFO — Contando archivos exportables en Unidades Compartidas...
+2025-05-31 00:23:15,310 — INFO — Total de archivos a migrar: 483 (Mi unidad: 479, Unidades Compartidas: 4)
+2025-05-31 00:23:15,310 — INFO — Iniciando migración de 'Mi unidad'...
+2025-05-31 00:23:16,417 — INFO — Descarga 'Acta de constitución - Caso Defsa - Kevin Gonzalez - Camilo Silva Perilla': 1.09s
+2025-05-31 00:23:17,625 — INFO — Subida 'Acta de constitución - Caso Defsa - Kevin Gonzalez - Camilo Silva Perilla': 1.21s
+2025-05-31 00:23:18,475 — INFO — Descarga 'Documento sin título': 0.85s
+2025-05-31 00:23:19,241 — INFO — Subida 'Documento sin título': 0.77s
+2025-05-31 00:23:20,097 — INFO — Descarga '2do parcial - Grupal - Exportado': 0.85s
+2025-05-31 00:23:20,841 — INFO — Subida '2do parcial - Grupal - Exportado': 0.74s
+2025-05-31 00:23:21,726 — INFO — Descarga 'Asignar Trabajos/Entregas - Exportado': 0.88s
+2025-05-31 00:23:22,363 — INFO — Subida 'Asignar Trabajos/Entregas - Exportado': 0.64s
+2025-05-31 00:23:23,188 — INFO — Descarga 'Prueba Diagnóstica  - Exportado': 0.82s
+2025-05-31 00:23:23,893 — INFO — Subida 'Prueba Diagnóstica  - Exportado': 0.70s
+2025-05-31 00:23:24,742 — INFO — Descarga 'Evaluación Diagnostica - Exportado': 0.85s
+2025-05-31 00:23:25,326 — INFO — Subida 'Evaluación Diagnostica - Exportado': 0.58s
+2025-05-31 00:23:26,591 — INFO — Descarga 'Prueba Diagnostica': 1.26s
+2025-05-31 00:23:27,519 — INFO — Subida 'Prueba Diagnostica': 0.92s
+2025-05-31 00:23:28,292 — INFO — Descarga 'Trabajos': 0.77s
+2025-05-31 00:23:29,326 — INFO — Subida 'Trabajos': 1.03s
+2025-05-31 00:23:53,336 — INFO — Token de OneDrive obtenido
+2025-05-31 00:23:53,822 — INFO — DirectMigrator inicializado correctamente.
+2025-05-31 00:23:53,822 — INFO — Obteniendo archivos exportables de 'Mi unidad'...
+2025-05-31 00:24:17,847 — INFO — Contando archivos exportables en Unidades Compartidas...
+2025-05-31 00:24:19,393 — INFO — Total de archivos a migrar: 483 (Mi unidad: 479, Unidades Compartidas: 4)
+2025-05-31 00:24:19,396 — INFO — Iniciando migración de 'Mi unidad'...
+2025-05-31 00:24:21,174 — INFO — Descarga 'RutaDigitalHARO': 1.73s
+2025-05-31 00:25:01,310 — INFO — Token de OneDrive obtenido
+2025-05-31 00:25:01,667 — INFO — DirectMigrator inicializado correctamente.
+2025-05-31 00:25:01,667 — INFO — Obteniendo archivos exportables de 'Mi unidad'...
+2025-05-31 00:25:25,273 — INFO — Contando archivos exportables en Unidades Compartidas...
+2025-05-31 00:25:26,693 — INFO — Total de archivos a migrar: 483 (Mi unidad: 479, Unidades Compartidas: 4)
+2025-05-31 00:25:26,700 — INFO — Iniciando migración de 'Mi unidad'...
+2025-05-31 00:25:28,679 — INFO — Descarga 'RutaDigitalHARO': 1.93s
+2025-05-31 00:25:30,795 — INFO — Subida 'RutaDigitalHARO': 2.12s
+2025-05-31 00:25:31,868 — INFO — Descarga 'Documento sin título': 1.07s
+2025-05-31 00:25:32,705 — INFO — Subida 'Documento sin título': 0.84s
+2025-05-31 00:25:35,124 — INFO — Descarga 'Taller Integrado: Análisis de Caso y Proyecto de Implementación': 2.42s
+2025-05-31 00:25:36,232 — INFO — Subida 'Taller Integrado: Análisis de Caso y Proyecto de Implementación': 1.11s
+2025-05-31 00:25:37,327 — INFO — Descarga 'Actividad 2 de 2025-1: Vigilancia tecnológica para aplicar la creatividad organizacional': 1.09s
+2025-05-31 00:25:38,181 — INFO — Subida 'Actividad 2 de 2025-1: Vigilancia tecnológica para aplicar la creatividad organizacional': 0.85s
+2025-05-31 00:25:39,037 — INFO — Descarga 'marco_teorico_formal': 0.85s
+2025-05-31 00:25:39,609 — INFO — Subida 'marco_teorico_formal': 0.57s
+2025-05-31 00:25:40,817 — INFO — Descarga 'Horarios revisión': 1.21s
+2025-05-31 00:25:41,561 — INFO — Subida 'Horarios revisión': 0.74s
+2025-05-31 00:25:44,552 — INFO — Descarga 'Untitled spreadsheet': 2.99s
+2025-05-31 00:25:47,554 — INFO — Subida 'Untitled spreadsheet': 3.00s
+2025-05-31 00:25:48,571 — INFO — Descarga 'Modalidad Grado y Director': 1.01s
+2025-05-31 00:25:49,209 — INFO — Subida 'Modalidad Grado y Director': 0.64s
+2025-05-31 00:25:51,154 — INFO — Descarga 'FORMATO - DISEÑO MICROCURRICULAR METODOLOGIA INVERTIDA - TEMAS HAB BLANDAS - RESILIENCIA Y EMPATIA': 1.94s
+2025-05-31 00:25:52,508 — INFO — Subida 'FORMATO - DISEÑO MICROCURRICULAR METODOLOGIA INVERTIDA - TEMAS HAB BLANDAS - RESILIENCIA Y EMPATIA': 1.35s
+2025-05-31 00:25:53,565 — INFO — Descarga 'planestudio.doc': 1.05s
+2025-05-31 00:25:54,272 — INFO — Subida 'planestudio.doc': 0.71s
+2025-05-31 00:25:55,497 — INFO — Descarga 'Fase preliminar caso defsa 2/2': 1.22s
+2025-05-31 00:25:56,320 — INFO — Subida 'Fase preliminar caso defsa 2/2': 0.82s
+2025-05-31 00:25:57,699 — INFO — Descarga 'ENSAYO CÁLCULO DE  PRECIOS EN LA NUBE': 1.38s
+2025-05-31 00:25:58,786 — INFO — Subida 'ENSAYO CÁLCULO DE  PRECIOS EN LA NUBE': 1.09s
+2025-05-31 00:25:59,626 — INFO — Descarga 'Ley 1581 de 2012 Protección de Datos Personales': 0.84s
+2025-05-31 00:26:00,236 — INFO — Subida 'Ley 1581 de 2012 Protección de Datos Personales': 0.61s
+2025-05-31 00:26:01,733 — INFO — Descarga 'Documento sin título': 1.49s
+2025-05-31 00:26:03,026 — INFO — Subida 'Documento sin título': 1.29s
+2025-05-31 00:26:04,428 — INFO — Descarga 'ENSAYO  AN INTRODUCTION TO ENTERPRISE ARQUITECTURE. BERNARD 2012': 1.40s
+2025-05-31 00:26:05,639 — INFO — Subida 'ENSAYO  AN INTRODUCTION TO ENTERPRISE ARQUITECTURE. BERNARD 2012': 1.21s
+2025-05-31 00:26:07,169 — INFO — Descarga 'CV': 1.53s
+2025-05-31 00:26:08,209 — INFO — Subida 'CV': 1.04s
+2025-05-31 00:26:11,590 — INFO — Descarga 'PONTE EN MI ZAPATOS': 3.38s
+2025-05-31 00:26:13,961 — INFO — Subida 'PONTE EN MI ZAPATOS': 2.37s
+2025-05-31 00:26:14,768 — INFO — Descarga 'Documento sin título': 0.81s
+2025-05-31 00:26:15,556 — INFO — Subida 'Documento sin título': 0.79s
+2025-05-31 00:26:16,324 — INFO — Descarga 'PreRegistro_LiliaInes_AlejoGonzalez-2': 0.77s
+2025-05-31 00:26:17,059 — INFO — Subida 'PreRegistro_LiliaInes_AlejoGonzalez-2': 0.73s
+2025-05-31 00:26:18,196 — INFO — Descarga 'Información de identificación': 1.14s
+2025-05-31 00:26:19,062 — INFO — Subida 'Información de identificación': 0.87s
+2025-05-31 00:26:20,433 — INFO — Descarga 'INFORME KEVIN ALEJANDRO GONZALEZ AGUDELO': 1.37s
+2025-05-31 00:26:21,736 — INFO — Subida 'INFORME KEVIN ALEJANDRO GONZALEZ AGUDELO': 1.30s
+2025-05-31 00:26:23,013 — INFO — Descarga 'Informe-TallerPráctica': 1.27s
+2025-05-31 00:26:24,321 — INFO — Subida 'Informe-TallerPráctica': 1.31s
+2025-05-31 00:26:25,492 — INFO — Descarga 'ENSAYO  PODCAST DE ARQUITECTURA EMPRESARIAL': 1.17s
+2025-05-31 00:26:26,388 — INFO — Subida 'ENSAYO  PODCAST DE ARQUITECTURA EMPRESARIAL': 0.89s
+2025-05-31 00:26:27,734 — INFO — Descarga 'Podcast de Arquitectura Empresarial': 1.35s
+2025-05-31 00:26:28,700 — INFO — Subida 'Podcast de Arquitectura Empresarial': 0.97s
+2025-05-31 00:26:29,662 — INFO — Descarga 'Documento sin título': 0.96s
+2025-05-31 00:26:30,501 — INFO — Subida 'Documento sin título': 0.84s
+2025-05-31 00:26:31,847 — INFO — Descarga 'Registro de inversiones de Google Finance': 1.34s
+2025-05-31 00:26:32,728 — INFO — Subida 'Registro de inversiones de Google Finance': 0.88s
+2025-05-31 00:26:33,701 — INFO — Descarga 'Guía para entrega de trabajos Estructuración del Pensamiento 4': 0.97s
+2025-05-31 00:26:34,512 — INFO — Subida 'Guía para entrega de trabajos Estructuración del Pensamiento 4': 0.81s
+2025-05-31 00:26:35,536 — INFO — Descarga 'RESPUESTAS A LAS PREGUNTAS PROYECTO TECNOLOGICO MEDICO': 1.02s
+2025-05-31 00:26:36,568 — INFO — Subida 'RESPUESTAS A LAS PREGUNTAS PROYECTO TECNOLOGICO MEDICO': 1.03s
+2025-05-31 00:26:38,340 — INFO — Descarga '3Dvinci studio': 1.77s
+2025-05-31 00:26:39,044 — INFO — Subida '3Dvinci studio': 0.70s
+2025-05-31 00:26:40,103 — INFO — Descarga 'Documento sin título': 1.05s
+2025-05-31 00:26:41,376 — INFO — Subida 'Documento sin título': 1.27s
+2025-05-31 00:26:42,344 — INFO — Descarga 'Documento sin título': 0.97s
+2025-05-31 00:26:43,286 — INFO — Subida 'Documento sin título': 0.94s
+2025-05-31 00:26:44,645 — INFO — Descarga 'Documento sin título': 1.36s
+2025-05-31 00:26:46,175 — INFO — Subida 'Documento sin título': 1.53s
+2025-05-31 00:26:47,672 — INFO — Descarga 'Parcial': 1.49s
+2025-05-31 00:26:48,770 — INFO — Subida 'Parcial': 1.10s
+2025-05-31 00:26:49,551 — INFO — Descarga 'Untitled spreadsheet': 0.78s
+2025-05-31 00:26:50,180 — INFO — Subida 'Untitled spreadsheet': 0.63s
+2025-05-31 00:26:51,274 — INFO — Descarga 'Horarios Asesoría 2da Parte': 1.09s
+2025-05-31 00:26:51,915 — INFO — Subida 'Horarios Asesoría 2da Parte': 0.64s
+2025-05-31 00:26:54,594 — INFO — Descarga 'Creatividad e Innovación: El Poder de las Analogías': 2.68s
+2025-05-31 00:26:56,541 — INFO — Subida 'Creatividad e Innovación: El Poder de las Analogías': 1.95s
+2025-05-31 00:26:59,475 — INFO — Descarga 'TALLER #2': 2.93s
+2025-05-31 00:27:03,583 — INFO — Subida 'TALLER #2': 4.11s
+2025-05-31 00:27:06,048 — INFO — Descarga 'Presentación general estudiantes opciones de Grado y Protocolo': 2.46s
+2025-05-31 00:27:08,101 — INFO — Subida 'Presentación general estudiantes opciones de Grado y Protocolo': 2.05s
+2025-05-31 00:27:09,704 — INFO — Descarga 'TALLER #1': 1.60s
+2025-05-31 00:27:11,318 — INFO — Subida 'TALLER #1': 1.61s
+2025-05-31 00:27:12,831 — INFO — Descarga 'Fase preliminar caso defsa 1/2': 1.51s
+2025-05-31 00:27:13,712 — INFO — Subida 'Fase preliminar caso defsa 1/2': 0.88s
+2025-05-31 00:27:16,787 — INFO — Descarga 'Modelo Naive: Funcionamiento e Importancia en Redes de Datos': 3.07s
+2025-05-31 00:27:19,783 — INFO — Subida 'Modelo Naive: Funcionamiento e Importancia en Redes de Datos': 3.00s
+2025-05-31 00:27:23,201 — INFO — Descarga 'Modelo Naive Bayes: Una Introducción': 3.41s
+2025-05-31 00:27:26,823 — INFO — Subida 'Modelo Naive Bayes: Una Introducción': 3.62s
+2025-05-31 00:27:27,672 — INFO — Descarga '¿QUÉ ES SER INTERNACIONALISTA?': 0.85s
+2025-05-31 00:27:28,480 — INFO — Subida '¿QUÉ ES SER INTERNACIONALISTA?': 0.81s
+2025-05-31 00:27:29,379 — INFO — Descarga 'Documento sin título': 0.90s
+2025-05-31 00:27:30,147 — INFO — Subida 'Documento sin título': 0.77s
+2025-05-31 00:27:32,303 — INFO — Descarga 'PRISMA for BACKGROUND and STATE OF THE ART': 2.15s
+2025-05-31 00:27:33,269 — INFO — Subida 'PRISMA for BACKGROUND and STATE OF THE ART': 0.97s
+2025-05-31 00:27:34,224 — INFO — Descarga 'Documento sin título': 0.95s
+2025-05-31 00:27:34,991 — INFO — Subida 'Documento sin título': 0.77s
+2025-05-31 00:27:36,002 — INFO — Descarga 'Documento sin título': 1.01s
+2025-05-31 00:27:36,766 — INFO — Subida 'Documento sin título': 0.76s
+2025-05-31 00:27:37,575 — INFO — Descarga 'Documento sin título': 0.81s
+2025-05-31 00:27:38,328 — INFO — Subida 'Documento sin título': 0.75s
+2025-05-31 00:27:39,159 — INFO — Descarga 'Documento sin título': 0.83s
+2025-05-31 00:27:39,894 — INFO — Subida 'Documento sin título': 0.73s
+2025-05-31 00:27:41,289 — INFO — Descarga 'Ensayo cap TOGAF 9.1': 1.39s
+2025-05-31 00:27:42,599 — INFO — Subida 'Ensayo cap TOGAF 9.1': 1.31s
+2025-05-31 00:27:43,840 — INFO — Descarga 'Formulario sin título': 1.24s
+2025-05-31 00:27:44,651 — INFO — Subida 'Formulario sin título': 0.81s
+2025-05-31 00:27:46,192 — INFO — Descarga 'Gap Analisis de Caso de DEFSA': 1.54s
+2025-05-31 00:27:47,684 — INFO — Subida 'Gap Analisis de Caso de DEFSA': 1.49s
+2025-05-31 00:27:48,885 — INFO — Descarga 'Horarios Asesoría': 1.20s
+2025-05-31 00:27:49,664 — INFO — Subida 'Horarios Asesoría': 0.78s
+2025-05-31 00:27:50,864 — INFO — Descarga 'Taller': 1.20s
+2025-05-31 00:27:51,708 — INFO — Subida 'Taller': 0.84s
+2025-05-31 00:27:53,037 — INFO — Descarga 'Práctica: Análisis de Congestión, Fragmentación y Calidad de Servicio': 1.33s
+2025-05-31 00:27:54,637 — INFO — Subida 'Práctica: Análisis de Congestión, Fragmentación y Calidad de Servicio': 1.60s
+2025-05-31 00:27:55,955 — INFO — Descarga 'Ensayo de La guia de Bolsillo de TOGAF 9.1': 1.31s
+2025-05-31 00:27:57,161 — INFO — Subida 'Ensayo de La guia de Bolsillo de TOGAF 9.1': 1.21s
+2025-05-31 00:27:58,140 — INFO — Descarga 'Documento sin título': 0.98s
+2025-05-31 00:27:58,932 — INFO — Subida 'Documento sin título': 0.79s
+2025-05-31 00:28:01,727 — INFO — Descarga '7. Ejercicios de NF en vensim': 2.79s
+2025-05-31 00:28:03,114 — INFO — Descarga 'Documento sin título': 1.39s
+2025-05-31 00:28:04,210 — INFO — Subida 'Documento sin título': 1.10s
+2025-05-31 00:28:05,267 — INFO — Descarga 'Ensayo Articulo de CCE': 1.05s
+2025-05-31 00:28:06,039 — INFO — Subida 'Ensayo Articulo de CCE': 0.77s
+2025-05-31 00:28:07,420 — INFO — Descarga 'Presupuesto bisutería': 1.38s
+2025-05-31 00:28:08,187 — INFO — Subida 'Presupuesto bisutería': 0.77s
+2025-05-31 00:28:09,113 — INFO — Descarga 'Ensayo defsa': 0.92s
+2025-05-31 00:28:09,920 — INFO — Subida 'Ensayo defsa': 0.81s
+2025-05-31 00:28:10,638 — INFO — Descarga 'FORMULARIO CASILLEROS 2025-1': 0.72s
+2025-05-31 00:28:11,320 — INFO — Subida 'FORMULARIO CASILLEROS 2025-1': 0.68s
+2025-05-31 00:28:12,587 — INFO — Descarga 'MINI TUTO': 1.27s
+2025-05-31 00:28:13,722 — INFO — Subida 'MINI TUTO': 1.13s
+2025-05-31 00:28:14,879 — INFO — Descarga 'Copia de Formato opción Desarrollo Tecnológico COG': 1.16s
+2025-05-31 00:28:15,586 — INFO — Subida 'Copia de Formato opción Desarrollo Tecnológico COG': 0.71s
+2025-05-31 00:28:16,469 — INFO — Descarga 'Mapa Conceptual: Infraestructura de Red para una Ciudad Inteligente': 0.88s
+2025-05-31 00:28:17,224 — INFO — Subida 'Mapa Conceptual: Infraestructura de Red para una Ciudad Inteligente': 0.75s
+2025-05-31 00:28:18,277 — INFO — Descarga 'GROUP: Using the Ubosque repository': 1.05s
+2025-05-31 00:28:18,985 — INFO — Subida 'GROUP: Using the Ubosque repository': 0.71s
+2025-05-31 00:28:20,540 — INFO — Descarga 'ENSAYO FRAMEWORKS E2AF & ZACHMAN': 1.55s
+2025-05-31 00:28:21,987 — INFO — Subida 'ENSAYO FRAMEWORKS E2AF & ZACHMAN': 1.45s
+2025-05-31 00:28:23,210 — INFO — Descarga 'Copia de Artificial Intelligence in education': 1.22s
+2025-05-31 00:28:24,192 — INFO — Subida 'Copia de Artificial Intelligence in education': 0.98s
+2025-05-31 00:28:25,170 — INFO — Descarga 'Trabajo de grado en la modalidad de desarrollo tecnológico': 0.98s
+2025-05-31 00:28:26,060 — INFO — Subida 'Trabajo de grado en la modalidad de desarrollo tecnológico': 0.89s
+2025-05-31 00:28:27,474 — INFO — Descarga 'Artificial Intelligence in education': 1.41s
+2025-05-31 00:28:28,447 — INFO — Subida 'Artificial Intelligence in education': 0.97s
+2025-05-31 00:28:29,600 — INFO — Descarga 'V2 Plagiarism vs Similarity: Cases Study': 1.15s
+2025-05-31 00:28:30,434 — INFO — Subida 'V2 Plagiarism vs Similarity: Cases Study': 0.83s
+2025-05-31 00:28:32,350 — INFO — Descarga 'V2 Opportunities: Job and postgraduate opportunities in Colombia and the world': 1.91s
+2025-05-31 00:28:33,754 — INFO — Subida 'V2 Opportunities: Job and postgraduate opportunities in Colombia and the world': 1.40s
+2025-05-31 00:28:35,722 — INFO — Descarga 'PARTICIPATION Opportunities: Job and postgraduate opportunities in Colombia and the world': 1.97s
+2025-05-31 00:28:36,901 — INFO — Subida 'PARTICIPATION Opportunities: Job and postgraduate opportunities in Colombia and the world': 1.18s
+2025-05-31 00:28:38,251 — INFO — Descarga 'Formato opción Desarrollo Tecnológico COG': 1.35s
+2025-05-31 00:28:38,964 — INFO — Subida 'Formato opción Desarrollo Tecnológico COG': 0.71s
+2025-05-31 00:28:39,921 — INFO — Descarga 'ALGUNOS TIPS A TENER EN CUENTA PARA LA REALIZACIÓN DE CRONOGRAMA': 0.95s
+2025-05-31 00:28:40,505 — INFO — Subida 'ALGUNOS TIPS A TENER EN CUENTA PARA LA REALIZACIÓN DE CRONOGRAMA': 0.58s
+2025-05-31 00:28:41,898 — INFO — Descarga 'Formato opción Desarrollo Tecnológico COG': 1.39s
+2025-05-31 00:28:42,580 — INFO — Subida 'Formato opción Desarrollo Tecnológico COG': 0.68s
+2025-05-31 00:28:45,782 — INFO — Descarga '5. Pensamiento operacional y reglas de decisión': 3.20s
+2025-05-31 00:28:48,341 — INFO — Subida '5. Pensamiento operacional y reglas de decisión': 2.56s
+2025-05-31 00:28:49,597 — INFO — Descarga 'E2AF': 1.25s
+2025-05-31 00:28:51,375 — INFO — Subida 'E2AF': 1.78s
+2025-05-31 00:28:52,478 — INFO — Descarga 'Taller-PlaneaciónEstratégica': 1.10s
+2025-05-31 00:28:53,325 — INFO — Subida 'Taller-PlaneaciónEstratégica': 0.85s
+2025-05-31 00:28:54,693 — INFO — Descarga 'How are you Professor Mentor?': 1.36s
+2025-05-31 00:28:55,350 — INFO — Subida 'How are you Professor Mentor?': 0.66s
+2025-05-31 00:28:57,764 — INFO — Descarga '4. Crítica para el diseño de sistemas sociales': 2.41s
+2025-05-31 00:28:59,777 — INFO — Subida '4. Crítica para el diseño de sistemas sociales': 2.01s
+2025-05-31 00:29:00,702 — INFO — Descarga 'Taller_IP': 0.92s
+2025-05-31 00:29:01,309 — INFO — Subida 'Taller_IP': 0.61s
+2025-05-31 00:29:02,400 — INFO — Descarga 'Plagiarism vs Similarity: Cases Study': 1.09s
+2025-05-31 00:29:03,045 — INFO — Subida 'Plagiarism vs Similarity: Cases Study': 0.64s
+2025-05-31 00:29:03,929 — INFO — Descarga 'Hoja de cálculo sin título': 0.88s
+2025-05-31 00:29:05,244 — INFO — Subida 'Hoja de cálculo sin título': 1.31s
+2025-05-31 00:29:07,752 — INFO — Descarga '2. Complejidad de los sistemas sociales': 2.51s
+2025-05-31 00:29:09,786 — INFO — Subida '2. Complejidad de los sistemas sociales': 2.03s
+2025-05-31 00:29:11,417 — INFO — Descarga 'Portafolio_Adulto Mayor Usaquen': 1.63s
+2025-05-31 00:29:13,144 — INFO — Subida 'Portafolio_Adulto Mayor Usaquen': 1.73s
+2025-05-31 00:29:15,930 — INFO — Descarga '3. Cibernética de segunda orden': 2.78s
+2025-05-31 00:29:19,008 — INFO — Subida '3. Cibernética de segunda orden': 3.08s
+2025-05-31 00:29:19,736 — INFO — Descarga 'Documento sin título': 0.72s
+2025-05-31 00:29:20,450 — INFO — Subida 'Documento sin título': 0.71s
+2025-05-31 00:29:21,392 — INFO — Descarga 'Propuestas': 0.94s
+2025-05-31 00:29:22,139 — INFO — Subida 'Propuestas': 0.75s
+2025-05-31 00:29:22,996 — INFO — Descarga 'Taller_IP_Intro': 0.86s
+2025-05-31 00:29:23,780 — INFO — Subida 'Taller_IP_Intro': 0.78s
+2025-05-31 00:29:24,783 — INFO — Descarga 'Ensayo': 1.00s
+2025-05-31 00:29:25,844 — INFO — Subida 'Ensayo': 1.06s
+2025-05-31 00:29:26,963 — INFO — Descarga 'Preguntas proyecto de grado': 1.12s
+2025-05-31 00:29:27,645 — INFO — Subida 'Preguntas proyecto de grado': 0.68s
+2025-05-31 00:29:29,072 — INFO — Descarga 'EJERCICIO 2': 1.43s
+2025-05-31 00:29:30,073 — INFO — Subida 'EJERCICIO 2': 1.00s
+2025-05-31 00:29:31,072 — INFO — Descarga 'Hoja de cálculo sin título': 1.00s
+2025-05-31 00:29:31,883 — INFO — Subida 'Hoja de cálculo sin título': 0.81s
+2025-05-31 00:29:32,795 — INFO — Descarga 'EJERCICIO 2 - Gráfico de líneas 1': 0.91s
+2025-05-31 00:29:33,711 — INFO — Subida 'EJERCICIO 2 - Gráfico de líneas 1': 0.92s
+2025-05-31 00:29:34,683 — INFO — Descarga 'GRABACIONM': 0.97s
+2025-05-31 00:29:35,382 — INFO — Subida 'GRABACIONM': 0.70s
+2025-05-31 00:29:36,880 — INFO — Descarga 'Portafolio_UniónColombia': 1.50s
+2025-05-31 00:29:38,789 — INFO — Subida 'Portafolio_UniónColombia': 1.91s
+2025-05-31 00:29:39,997 — INFO — Descarga 'Portafolio_Adulto Mayor Biblioteca': 1.21s
+2025-05-31 00:29:41,111 — INFO — Subida 'Portafolio_Adulto Mayor Biblioteca': 1.11s
+2025-05-31 00:29:42,368 — INFO — Descarga 'Intensivo_Ingles_B1B': 1.26s
+2025-05-31 00:29:43,034 — INFO — Subida 'Intensivo_Ingles_B1B': 0.67s
+2025-05-31 00:29:45,423 — INFO — Descarga '1. Pensamiento sistemico': 2.39s
+2025-05-31 00:30:48,469 — INFO — Token de OneDrive obtenido
+2025-05-31 00:30:48,820 — INFO — DirectMigrator inicializado correctamente.
+2025-05-31 00:30:48,820 — INFO — Obteniendo archivos exportables de 'Mi unidad'...
+2025-05-31 00:31:12,277 — INFO — Contando archivos exportables en Unidades Compartidas...
+2025-05-31 00:31:13,844 — INFO — Total de archivos a migrar: 483 (Mi unidad: 479, Unidades Compartidas: 4)
+2025-05-31 00:31:13,844 — INFO — Iniciando migración de 'Mi unidad'...
+2025-05-31 00:31:16,424 — INFO — Descarga '7. Ejercicios de NF en vensim': 2.44s
+2025-05-31 00:31:18,287 — INFO — Descarga '1. Pensamiento sistemico': 1.79s
+2025-05-31 00:31:22,522 — INFO — Subida '1. Pensamiento sistemico': 4.24s
+2025-05-31 00:31:24,970 — INFO — Descarga 'Andina Trading': 2.45s
+2025-05-31 00:31:27,221 — INFO — Subida 'Andina Trading': 2.25s
+2025-05-31 00:31:29,067 — INFO — Descarga 'Hoja de cálculo sin título': 1.84s
+2025-05-31 00:31:29,646 — INFO — Subida 'Hoja de cálculo sin título': 0.58s
+2025-05-31 00:31:30,465 — INFO — Descarga 'Documento sin título': 0.82s
+2025-05-31 00:31:31,425 — INFO — Subida 'Documento sin título': 0.96s
+2025-05-31 00:31:32,351 — INFO — Descarga 'Hoja de cálculo sin título': 0.92s
+2025-05-31 00:31:33,068 — INFO — Subida 'Hoja de cálculo sin título': 0.72s
+2025-05-31 00:31:34,565 — INFO — Descarga 'InformeFinal_LaborSocial': 1.49s
+2025-05-31 00:31:36,203 — INFO — Subida 'InformeFinal_LaborSocial': 1.64s
+2025-05-31 00:31:37,292 — INFO — Descarga 'Anexo C. Inscritos': 1.08s
+2025-05-31 00:31:38,257 — INFO — Subida 'Anexo C. Inscritos': 0.96s
+2025-05-31 00:31:44,173 — INFO — Descarga 'Clausura Labor Social 2024_2': 5.91s
+2025-05-31 00:31:45,151 — INFO — Descarga 'Documento sin título': 0.98s
+2025-05-31 00:31:45,876 — INFO — Subida 'Documento sin título': 0.72s
+2025-05-31 00:31:46,760 — INFO — Descarga 'Roles clausura 2024_2': 0.88s
+2025-05-31 00:31:47,556 — INFO — Subida 'Roles clausura 2024_2': 0.80s
+2025-05-31 00:31:48,831 — INFO — Descarga 'Inscritos Grupo Noveno 2024_2': 1.27s
+2025-05-31 00:31:50,032 — INFO — Subida 'Inscritos Grupo Noveno 2024_2': 1.20s
+2025-05-31 00:31:51,465 — INFO — Descarga 'EXAMEN 2024-II  PARTE PRÁCTICA': 1.43s
+2025-05-31 00:31:53,343 — INFO — Subida 'EXAMEN 2024-II  PARTE PRÁCTICA': 1.88s
+2025-05-31 00:31:54,908 — INFO — Descarga 'gonzalez-dhcp': 1.56s
+2025-05-31 00:31:56,109 — INFO — Subida 'gonzalez-dhcp': 1.20s
+2025-05-31 00:31:57,826 — INFO — Descarga 'IdentificaciónProyecto-4': 1.71s

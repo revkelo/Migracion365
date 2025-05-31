@@ -43,7 +43,8 @@ class OneDriveService:
     def __init__(self):
         self.token = None
         self.logger = logging.getLogger("OneDriveService")
-        self.usuario = None 
+        self.usuario = None
+        self.url = None 
         self._configure_logger()
         self.authenticate()
 
@@ -81,11 +82,20 @@ class OneDriveService:
 
         for acct in app.get_accounts():
             app.remove_account(acct)
+            
+        
+        self.url = app.get_authorization_request_url(
+            scopes=ONEDRIVE_SCOPES
+        )
+        print(self.url)
 
         result = app.acquire_token_interactive(
             scopes=ONEDRIVE_SCOPES,
             prompt="select_account"
         )
+        
+
+        
         if "access_token" in result:
             self.token = result["access_token"]
             self.logger.info("Token de OneDrive obtenido")
@@ -95,6 +105,7 @@ class OneDriveService:
                 resp = requests.get("https://graph.microsoft.com/v1.0/me", headers=headers)
                 resp.raise_for_status()
                 self.usuario = resp.json().get("userPrincipalName", None)
+
             except Exception as e:
                 self.usuario = None
                 self.logger.error("No se pudo obtener el usuario de OneDrive: %s", e)

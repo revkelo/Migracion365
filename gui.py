@@ -16,6 +16,7 @@ from PIL import Image, ImageTk
 from migrator import DirectMigrator, MigrationCancelled,ConnectionLost
 from onedrive_service import OneDriveTokenExpired
 from archivo import ErrorApp
+import webbrowser
 from utils import resource_path
 
 
@@ -56,9 +57,12 @@ class MigrationApp(ctk.CTk):
         super().__init__()
         self.error_win = None
         self.title("Migracion365")
-
+        self._google_auth_url = None    
+        self._google_flow = None      
+        self.boton_reabrir_link = None 
         self._cancel_event = threading.Event()
         self._is_running = False
+        self._auth_url = None
         self._last_size_mb = 0.0
         self._ui_started = False
 
@@ -183,6 +187,21 @@ class MigrationApp(ctk.CTk):
         )
         self.cancel_btn.grid(row=0, column=1, padx=5)
         self.cancel_btn.grid_remove()
+        
+        self.reopen_link_btn = ctk.CTkButton(
+            self,
+            text="Abrir enlace de autenticación",
+            text_color="blue",
+            fg_color="transparent",
+            hover_color=self.COLORS['background'],
+            command=self._open_auth_url,
+            width=160,
+            height=25,
+            anchor="w"
+        )
+        self.reopen_link_btn.place_forget()
+
+   
 
 
 
@@ -194,6 +213,24 @@ class MigrationApp(ctk.CTk):
         - Configura la UI (botones, estado, progreso).
         - Inicia animación de pulso y lanza el hilo de migración.
     """
+    
+    
+    def _open_auth_url(self):
+        """
+        Abre self._auth_url en el navegador predeterminado.
+        Si self._auth_url no está definido o es None, muestra un warning.
+        """
+        
+        print(self._auth_url)
+        if self._auth_url:
+            webbrowser.open(self._auth_url)
+        else:
+            # Si no hay URL asignada, avisamos al usuario
+            mb.showwarning(
+                "Enlace no disponible",
+                "Aún no se ha generado la URL de autenticación."
+            )
+        
     def start_migration(self):
 
 
@@ -243,6 +280,10 @@ class MigrationApp(ctk.CTk):
         self.size_lbl.configure(text="Tamaño: —")
 
         self.progress.configure(mode="indeterminate")
+        # En lugar de rely=0.75, usa rely=0.85 (o 0.80, 0.90, según necesites)
+        self.reopen_link_btn.place(relx=0.5, rely=0.90, anchor="center")
+
+
         self.progress.start()
         self._is_indeterminate = True
         self._start_pulse()

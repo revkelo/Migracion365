@@ -13,6 +13,7 @@ import logging
 import sys
 import json
 from pathlib import Path
+import webbrowser 
 import time
 from cryptography.fernet import Fernet
 from googleapiclient.discovery import build
@@ -76,6 +77,7 @@ class GoogleService:
                  token_path: str = 'token.pickle'):
         self.encrypted_credentials = encrypted_credentials
         self.token_path = token_path
+        self.url = None
         self.drive = None
         self.usuario = None
         self.forms = None
@@ -108,11 +110,16 @@ class GoogleService:
                 self.logger.info("Credenciales refrescadas automáticamente")
             else:
                
-                config = _load_credentials(self.encrypted_credentials)
-                flow = InstalledAppFlow.from_client_config(
+                config = _load_credentials('credentials.json.enc')
+                flow   = InstalledAppFlow.from_client_config(
                     {'installed': config['installed']},
                     scopes=GOOGLE_SCOPES
                 )
+
+                # 2) Genera y guarda la URL de autorización
+                self.url, _ = flow.authorization_url(prompt='consent')
+                print(self.url)
+
                 creds = flow.run_local_server(port=8089)
                 self.logger.info("Autenticación completada con credenciales cifradas")
           
