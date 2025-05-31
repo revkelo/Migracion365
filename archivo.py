@@ -14,21 +14,23 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 from utils import resource_path
 
+"""
+Ventana emergente única para mostrar los archivos con errores de migración.
+
+Implementa el patrón singleton para asegurar que solo exista una instancia
+activa. Permite visualizar los detalles de los errores guardados en un archivo
+de log y copiar celdas al portapapeles.
+"""
 class ErrorApp(ctk.CTkToplevel):
-    """
-    Ventana emergente única para mostrar los archivos con errores de migración.
 
-    Implementa el patrón singleton para asegurar que solo exista una instancia
-    activa. Permite visualizar los detalles de los errores guardados en un archivo
-    de log y copiar celdas al portapapeles.
-    """
     _instance = None
-
+    
+    """
+    Controla la creación de instancias para implementar el singleton.
+    Si ya existe una ventana abierta, la trae al frente en lugar de crear una nueva.
+    """
     def __new__(cls, master=None):
-        """
-        Controla la creación de instancias para implementar el singleton.
-        Si ya existe una ventana abierta, la trae al frente en lugar de crear una nueva.
-        """
+   
         if cls._instance is not None and cls._instance.winfo_exists():
             cls._instance.lift()
             return cls._instance
@@ -42,7 +44,6 @@ class ErrorApp(ctk.CTkToplevel):
         Parámetros:
             master (widget, opcional): Widget padre de la ventana.
         """
-
         if getattr(self, '_initialized', False):
             return
         
@@ -69,12 +70,13 @@ class ErrorApp(ctk.CTkToplevel):
         self.lift()
         self.attributes("-topmost", True)
         self.after(100, lambda: self.attributes("-topmost", False))
-
-    def _create_error_table(self):
-        """
+        
+    """
         Carga el archivo de errores y muestra su contenido en un Treeview.
         Si no hay errores, muestra un mensaje y cierra la ventana.
-        """
+    """
+    def _create_error_table(self):
+    
         log_file = "migration_errors.txt"
         if not os.path.exists(log_file) or os.path.getsize(log_file) == 0:
             messagebox.showinfo("Sin errores", "No hay errores registrados.")
@@ -114,6 +116,10 @@ class ErrorApp(ctk.CTkToplevel):
         vsb.pack(side='right', fill='y')
         tree.pack(expand=True, fill='both', side='left')
 
+        """
+        Permite copiar el contenido de la celda seleccionada al portapapeles.
+        Si se hace doble clic o clic derecho, copia la celda directa o toda la fila.
+        """
         def copy_cell(event=None):
             item = tree.selection()
             if not item:
@@ -135,7 +141,11 @@ class ErrorApp(ctk.CTkToplevel):
 
 
         tooltip = ToolTip(tree)
-
+    
+        """
+        ToolTip que muestra el mensaje completo al pasar el cursor sobre la columna "Mensaje".
+        Solo se activa si el cursor está sobre la columna 5 (índice '#5').
+        """
         def on_motion(event):
             row_id = tree.identify_row(event.y)
             col_id = tree.identify_column(event.x)
@@ -154,20 +164,34 @@ class ErrorApp(ctk.CTkToplevel):
 
 
         self.protocol('WM_DELETE_WINDOW', self._on_close)
-
+        
+    """
+        Método que se invoca al cerrar la ventana: destruye la instancia y libera el singleton.
+    """
     def _on_close(self):
-        """
-        Maneja el evento de cierre de la ventana, destruye la instancia
-        y libera el singleton.
-        """
         self.destroy()
         type(self)._instance = None
 
+"""
+Clase auxiliar que gestiona la visualización de tooltips (ventanas emergentes pequeñas)
+sobre un widget de Tkinter. Al mostrar el tooltip, crea un Toplevel sin decoración
+posicionado cerca del cursor, con un Label que contiene el texto.
+"""
 class ToolTip:
+    """
+    Inicializa el tooltip asociado al 'widget' dado.
+    
+    Parámetros:
+        widget: widget de Tkinter (p. ej. un Treeview) al cual asociar el tooltip.
+    """
     def __init__(self, widget):
         self.widget = widget
         self.tipwindow = None
-
+    
+    """
+    Muestra el tooltip con el texto 'text' en la posición (x, y) de la pantalla.
+    Ajusta la geometría para que aparezca ligeramente desplazado del cursor.
+    """
     def showtip(self, text, x, y):
         self.hidetip()
         self.tipwindow = tw = tk.Toplevel(self.widget)
@@ -176,7 +200,10 @@ class ToolTip:
         label = tk.Label(tw, text=text, justify='left', background="#ffffe0",
                          relief='solid', borderwidth=1, wraplength=400)
         label.pack(ipadx=1)
-
+        
+    """
+    Oculta (destruye) el tooltip si está actualmente visible.
+    """
     def hidetip(self):
         if self.tipwindow:
             self.tipwindow.destroy()

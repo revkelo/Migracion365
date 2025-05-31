@@ -8,7 +8,11 @@
 
 
 from gui import MigrationApp
-
+"""
+Cuando se ejecuta este archivo como script principal:
+1. Se crea una instancia de MigrationApp (ventana principal de la GUI).
+2. Se invoca mainloop() para iniciar el bucle de eventos de Tkinter.
+"""
 if __name__ == "__main__":
     
         app = MigrationApp()

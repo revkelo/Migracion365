@@ -12,7 +12,6 @@ import requests
 import msal
 import logging
 from typing import Callable, Optional
-
 from config import (
     ONEDRIVE_CLIENT_ID,
     ONEDRIVE_AUTHORITY,
@@ -28,17 +27,16 @@ class OneDriveTokenExpired(Exception):
     pass
 
 
-class OneDriveService:
-    
-    """
-    Servicio para interactuar con OneDrive.
+"""
+Servicio para interactuar con OneDrive.
 
-    - Autenticación mediante MSAL (OAuth interactivo).
-    - Creación de carpetas de forma iterativa.
-    - Sesiones de subida resumable para archivos grandes.
-    - Subida de archivos pequeños y grandes, con callback de progreso.
-    - Registro de actividad en consola y archivo de log.
-    """
+- Autenticación mediante MSAL (OAuth interactivo).
+- Creación de carpetas de forma iterativa.
+- Sesiones de subida resumable para archivos grandes.
+- Subida de archivos pequeños y grandes, con callback de progreso.
+- Registro de actividad en consola y archivo de log.
+"""
+class OneDriveService:
     
     def __init__(self):
         self.token = None
@@ -48,15 +46,14 @@ class OneDriveService:
         self._configure_logger()
         self.authenticate()
 
-
+    """
+    Retorna la URL que se generó para el usuario, de modo que
+    desde la GUI podamos reabrirla si fue cerrada.
+    """
 
     def get_auth_url(self) -> str:
-        """
-        Retorna la URL que se generó para el usuario, de modo que
-        desde la GUI podamos reabrirla si fue cerrada.
-        """
+
         return self.url
-    
     
     """
     Configura el logger para enviar mensajes a consola y a un archivo,
@@ -104,8 +101,6 @@ class OneDriveService:
             prompt="select_account"
         )
         
-
-        
         if "access_token" in result:
             self.token = result["access_token"]
             self.logger.info("Token de OneDrive obtenido")
@@ -124,17 +119,17 @@ class OneDriveService:
             error = result.get("error_description", "desconocido")
             raise RuntimeError(f"Error obteniendo token de OneDrive: {error}")
 
-
     """
-        Crea de forma iterativa la estructura de carpetas en OneDrive.
+    Comprueba si la respuesta HTTP indica token expirado (401).
 
-        - Recorre cada parte de la ruta y comprueba existencia.
-        - Si no existe, envía POST para crear la carpeta.
-        - Renombra en caso de conflicto.
-        - Registra errores y retorna False si falla.
-     """
-   
-   
+    Si el token expiró, vuelve a llamar a authenticate() para obtener uno nuevo.
+
+    Args:
+        response (requests.Response): Respuesta de la petición anterior.
+
+    Returns:
+        bool: True si se reautenticó correctamente; False si el token no estaba expirado.
+    """
    
     def _handle_token_expired(self, response) -> bool:
         if response.status_code == 401:
@@ -151,9 +146,22 @@ class OneDriveService:
                 )
         return False
 
-   
+    """
+    Crea de forma iterativa la estructura de carpetas en OneDrive.
 
+    - Divide 'path' en segmentos por "/".
+    - Para cada segmento:
+        1. Comprueba si la carpeta ya existe (GET a root:/{subpath}).
+        2. Si no existe (404), envía POST a /children de su carpeta padre.
+            Usa "@microsoft.graph.conflictBehavior": "rename" para evitar conflictos.
+    - Registro de errores en caso de fallo.
 
+    Args:
+        path (str): Ruta completa dentro de OneDrive (p.ej., "Carpeta/Subcarpeta").
+
+    Returns:
+        bool: True si todas las carpetas se crearon (o ya existían); False si hubo error.
+    """
     def create_folder(self, path: str) -> bool:
 
         if not path.strip():
@@ -182,13 +190,19 @@ class OneDriveService:
                     return False
         return True
 
-    """
-        Inicia una sesión de subida resumable y devuelve la URL.
 
-        - Envía POST a la ruta `/createUploadSession`.
-        - Devuelve `uploadUrl` del JSON de respuesta.
     """
+    Inicia una sesión de subida resumable para archivos grandes.
 
+    - Envía POST a /me/drive/root:/{remote_path}:/createUploadSession.
+    - Retorna la URL de subida (uploadUrl) para fragmentar la transferencia.
+
+    Args:
+        remote_path (str): Ruta completa en OneDrive donde se guardará el archivo.
+
+    Returns:
+        str: uploadUrl proporcionada por Microsoft Graph.
+    """
     def create_upload_session(self, remote_path: str) -> str:
 
         url = (
@@ -203,10 +217,20 @@ class OneDriveService:
         return session["uploadUrl"]
 
     """
-        Selecciona método de subida según el tamaño:
+    Selecciona método de subida según el tamaño del archivo.
 
-        - < LARGE_FILE_THRESHOLD: `_upload_small`.
-        - >= LARGE_FILE_THRESHOLD: `_upload_large` con progreso.
+    - Si size > LARGE_FILE_THRESHOLD, usa _upload_large (fragmentado).
+    - Si size <= LARGE_FILE_THRESHOLD, usa _upload_small (PUT simple).
+    - Notifica progreso completo de archivos pequeños, si se proporciona callback.
+
+    Args:
+        file_data (io.BytesIO): Buffer con el contenido del archivo a subir.
+        remote_path (str): Ruta completa en OneDrive (por ej., "Carpeta/archivo.txt").
+        size (int): Tamaño del archivo en bytes.
+        progress_callback (callable | None): Función (bytes_sent, total_bytes, filename).
+
+    Returns:
+        bool: True si la subida fue exitosa; False si falló.
     """
     def upload(
         self,
@@ -227,11 +251,19 @@ class OneDriveService:
             return self._upload_small(file_data, remote_path, headers)
         
     """
-        Sube archivos pequeños en una sola petición PUT.
+    Sube archivos pequeños en una sola petición PUT.
 
-        - Establece `Content-Type` como `application/octet-stream`.
-        - Envía todo el contenido de `file_data`.
-        - Retorna True si el estado es 200 o 201.
+    - Establece Content-Type como application/octet-stream.
+    - Usa PUT a /me/drive/root:/{remote_path}:/content.
+    - Si 401 (token expirado), reautentica y reintenta.
+
+    Args:
+        file_data (io.BytesIO): Buffer con contenido del archivo.
+        remote_path (str): Ruta completa en OneDrive.
+        headers (dict): Headers iniciales con Authorization.
+
+    Returns:
+        bool: True si status_code es 200 o 201; False en otro caso.
     """
     def _upload_small(
         self,
@@ -252,7 +284,6 @@ class OneDriveService:
             resp = requests.put(url, headers=headers, data=file_data.read())
 
         return resp.status_code in (200, 201)
-
 
 
     """

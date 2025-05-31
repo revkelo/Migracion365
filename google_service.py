@@ -12,9 +12,8 @@ import pickle
 import logging
 import sys
 import json
-from pathlib import Path
-import webbrowser 
 import time
+from pathlib import Path
 from cryptography.fernet import Fernet
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseDownload
@@ -25,10 +24,6 @@ from config import GOOGLE_SCOPES, GOOGLE_EXPORT_FORMATS
 from utils import sanitize_filename
 
 KEY = b"HG5GHGW3o9bMUMWUmz7khGjhELzFUJ9W-52s_ZnIC40="
-
-
-
-
 
 """
 Carga el blob cifrado desde archivo.
@@ -63,15 +58,29 @@ def _load_credentials(filename: str = 'credentials.json.enc') -> dict:
     return json.loads(plaintext)
 
 """
-    Servicio para interactuar con Google Drive y Google Forms.
+Servicio para interactuar con Google Drive y Google Forms.
 
-    - Autenticación y token almacenado en pickle.
-    - Listado de archivos y carpetas.
-    - Descarga y exportación de documentos, hojas y slides.
-    - Conversión de formularios a Word.
+Funciones principales:
+- Autenticación (token almacenado/recuperado desde pickle).
+- Listar unidades compartidas y permisos.
+- Listar y reconstruir jerarquía de carpetas.
+- Descargar archivos nativos de Google (Docs, Sheets, Slides, Forms)
+  exportándolos a formatos Office (docx, xlsx, pptx).
+- Descargar archivos binarios convencionales.
+- Conversión de formularios a Word.
 """
 class GoogleService:
+    
 
+    """
+    Inicializa el servicio:
+
+    - Guarda rutas de credenciales cifradas y token pickle.
+    - Inicializa URL (para GUI) como None.
+    - Inicializa atributos para Drive, Forms, usuario autenticado.
+    - Configura logger con el nombre de la clase.
+    - Llama a _setup_services() para autenticar y obtener clientes API.
+    """
     def __init__(self,
                  encrypted_credentials: str = 'credentials.json.enc',
                  token_path: str = 'token.pickle'):
@@ -88,11 +97,17 @@ class GoogleService:
 
 
     """
-    Configura credenciales y construye los clientes de API.
+    Configura credenciales y construye los clientes de API de Drive y Forms.
 
-    - Carga o refresca token en pickle.
-    - Usa credenciales cifradas si no existe token.
-    - Inicializa client libraries de Drive y Forms.
+    - Intenta cargar token desde token_path (.pickle).
+    - Si existe y es válido, lo usa.
+    - Si no existe o está expirado, inicia un flujo OAuth:
+      1) Descifrando JSON de credenciales (credentials.json.enc).
+      2) Creando un flujo con InstalledAppFlow usando GOOGLE_SCOPES.
+      3) Ejecutando run_local_server() para obtener token vía navegador.
+    - Guarda el nuevo token en token_path.
+    - Luego, construye los clientes: self.drive y self.forms.
+    - Intenta obtener el correo del usuario autenticado y lo guarda en self.usuario.
     """
     def _setup_services(self):
         creds = None
@@ -105,8 +120,7 @@ class GoogleService:
             except Exception:
                 self.logger.warning("No se pudo cargar el token, se generará uno nuevo")
                 creds = None
-
-    
+                
         if not creds or not getattr(creds, 'valid', False):
             if creds and creds.expired and creds.refresh_token:
                 creds.refresh(Request())
@@ -118,9 +132,6 @@ class GoogleService:
                     {'installed': config['installed']},
                     scopes=GOOGLE_SCOPES
                 )
-
- 
-
                 creds = flow.run_local_server(port=8089)
                 self.logger.info("Autenticación completada con credenciales cifradas")
           
@@ -132,7 +143,6 @@ class GoogleService:
         self.forms = build('forms', 'v1', credentials=creds)
         self.logger.info("APIs de Drive y Forms listas para usarse")
         
-        # Obtener y guardar el correo del usuario autenticado
         try:
             about = self.drive.about().get(fields="user").execute()
             self.usuario = about['user']['emailAddress']
@@ -143,6 +153,17 @@ class GoogleService:
 
 
 
+    """
+    Traduce roles en inglés a equivalentes en español para permisos de Drive.
+
+    Recibe un rol (string) y retorna su traducción:
+      "organizer"     → "Administrador"
+      "fileOrganizer" → "Gestor de contenido"
+      "writer"        → "Colaborador"
+      "commenter"     → "Comentarista"
+      "reader"        → "Lector"
+    Si no coincide con ninguna clave, retorna "Desconocido".
+    """
     def rol_espanol(self, rol: str) -> str:
         equivalencias = {
             "organizer": "Administrador",
@@ -154,7 +175,14 @@ class GoogleService:
         return equivalencias.get(rol, "Desconocido")
 
 
+    """
+    Lista todas las Unidades Compartidas (Drives) donde el usuario tiene acceso.
 
+    - Realiza llamadas paginadas a drive.drives().list()
+    - Cada respuesta incluye 'drives(id, name)'
+    - Acumula en la lista 'unidades' hasta agotar pageToken
+    - Retorna la lista de diccionarios con keys 'id' y 'name'
+    """
     def listar_unidades_compartidas(self):
         unidades = []
         page_token = None
@@ -172,6 +200,14 @@ class GoogleService:
 
 
 
+    """
+    Lista todos los permisos (ACLs) de un archivo o carpeta en Drive.
+
+    - Parámetro 'file_id': el ID del recurso en Drive
+    - Se usa supportsAllDrives=True para incluir unidades compartidas
+    - Paginado con pageToken; campos: id, type, role, emailAddress, domain
+    - Retorna lista de diccionarios con información de permisos
+    """
     def listar_permisos(self, file_id: str):
         permisos = []
         page_token = None
@@ -190,6 +226,16 @@ class GoogleService:
         return permisos
 
 
+    """
+    Lista todo el contenido (archivos y carpetas) de una Unidad Compartida.
+
+    - Parámetro 'drive_id': el ID de la unidad compartida
+    - Realiza una consulta al endpoint files().list() con:
+        corpora='drive', driveId=drive_id, includeItemsFromAllDrives=True,
+        supportsAllDrives=True, q="trashed = false"
+    - Cada objeto en 'files' tiene id, name, mimeType, parents
+    - Retorna una lista de diccionarios con esa información
+    """
     def listar_contenido_drive(self, drive_id: str):
         archivos = []
         page_token = None
@@ -210,11 +256,14 @@ class GoogleService:
                 break
         return archivos
 
+    """
+    Método auxiliar para obtener el correo electrónico del usuario autenticado.
 
+    - Llama a drive.about().get(fields="user") y extrae 'emailAddress'.
+    - En caso de error, registra y retorna cadena vacía.
+    """
     def obtener_usuario(self) -> str:
-        """
-        Obtiene el correo electrónico del usuario autenticado en Google Drive.
-        """
+
         try:
             about = self.drive.about().get(fields="user").execute()
             return about['user']['emailAddress']
@@ -223,11 +272,18 @@ class GoogleService:
             return ""
 
 
-    """
-    Lista todos los archivos y carpetas en Drive.
 
-    - Omite elementos en la papelera.
-    - Retorna dicts de carpetas, archivos y tamaño total.
+    """
+    Lista recursivamente todos los archivos y carpetas en el Drive personal (no compartido).
+
+    - Omite elementos en la papelera (q="trashed = false").
+    - Pide campos: id, name, mimeType, parents, size, modifiedTime.
+    - Clasifica en 'folders' (mimeType carpeta) y 'files' (otros mimeType).
+    - Suma el tamaño total de archivos (total_size).
+    - Retorna tuplas (folders_dict, files_dict, total_size_bytes).
+      donde:
+        folders_dict[id] = {id, name, mimeType, parents}
+        files_dict[id]   = {id, name, mimeType, parents, size, modifiedTime}
     """
     def list_files_and_folders(self):
 
@@ -252,12 +308,14 @@ class GoogleService:
                 break
         return folders, files, total_size
 
-
     """
-    Reconstruye el path de carpetas dado un parent_id.
+    Reconstruye la ruta completa de carpetas dado un parent_id.
 
-    - Usa recursión basada en el dict de carpetas.
-    - Sanitiza nombres para uso en archivos locales.
+    - Parámetro 'parent_id': ID de la carpeta actual.
+    - Parámetro 'folders': diccionario de carpetas (id → metadatos).
+    - Recorre recursivamente hacia arriba (usando parents[0]) hasta raíz.
+    - Sanitiza cada nombre de carpeta para evitar caracteres inválidos.
+    - Devuelve una lista de nombres en orden desde raíz hasta la carpeta dada.
     """
     def get_folder_path(self, parent_id: str, folders: dict) -> list:
 
@@ -270,29 +328,32 @@ class GoogleService:
         return list(reversed(path))
     
     """
-    Descarga o exporta un archivo según su MIME.
+    Descarga o exporta un archivo de Google Drive según su MIME type.
 
-    - Para archivos de Google Apps, exporta a formatos Office.
-    - Para otros, descarga el contenido directamente.
-    - Convierte Formularios a Word.
-    - Devuelve un BytesIO y nombre de fichero.
+    - file_info: dict con keys 'id', 'mimeType', 'name'.
+    - Si el MIME pertenece a GOOGLE_EXPORT_FORMATS, realiza export (Docs, Sheets, Slides).
+    - Si es Forms, invoca _create_word_from_form() y retorna un BytesIO con el .docx del formulario.
+    - Si es otro tipo (imagen, pdf, etc.), realiza get_media() para descargar bytes.
+    - Implementa reintentos (max 3) en caso de errores transitorios (timeout, 500, SSL).
+    - Si el tamaño del archivo supera 100MB y es exportable, asigna last_error y retorna (None, name).
+    - Retorna tupla (BytesIO, filename) si tuvo éxito, o (None, name) en caso de falla.
     """
     def download_file(self, file_info: dict):
         file_id   = file_info['id']
         mime      = file_info['mimeType']
         name      = file_info['name']
         
-        # 1) Chequear tamaño si es un Google Doc/Sheet/Slide
+ 
         if mime in GOOGLE_EXPORT_FORMATS:
             try:
                 meta = self.drive.files().get(fileId=file_id, fields="size").execute()
                 size_bytes = int(meta.get('size', 0) or 0)
-                # Ejemplo: si supera 100MB, ya sabemos que fallará
+    
                 if size_bytes > 100 * 1024 * 1024:
                     self.last_error = Exception("exportSizeLimitExceeded")
                     return None, name
             except Exception:
-                # Si no pudimos obtener size (quizá no existe), seguimos al código normal
+  
                 pass
 
         max_retries = 3
@@ -321,30 +382,33 @@ class GoogleService:
 
             except Exception as e:
                 raw = str(e).lower()
-                # Si es un timeout o error 500 o SSL, reintenta
+
                 if any(keyword in raw for keyword in ("timed out", "timeout", "500", "ssl")):
                     attempt += 1
                     backoff = 2 ** attempt
                     self.logger.warning("Reintentando descarga de '%s' (intento %d/%d) tras error: %s", name, attempt, max_retries, e)
                     time.sleep(backoff)
                     continue
-                # Si es exportSizeLimitExceeded o permiso insuficiente, no reintenta
+
                 self.logger.error("Error irreparable al descargar '%s': %s", name, e)
                 self.last_error = e
                 return None, name
 
-        # Si agotó reintentos
         self.last_error = Exception("Tiempo de espera agotado tras varios intentos.")
         return None, name
 
 
         
     """
-    Convierte datos de formulario a un documento Word.
+    Convierte un formulario de Google Forms a un documento Word (.docx).
 
-    - Añade título y descripción.
-    - Incluye opciones de elección o marcado de texto.
-    - Guarda en un BytesIO.
+    - form_data: dict resultante de forms.forms().get(formId=...)
+    - Crea un objeto Document() de python-docx en memoria.
+    - Añade título (heading level 0) y descripción si existe.
+    - Recorre cada ítem del formulario:
+        • Si es pregunta de elección (choiceQuestion), lista opciones con prefijo A., B., C., ...
+        • Si es texto (textQuestion), añade placeholder de respuesta corta/larga.
+    - Devuelve un BytesIO con el contenido del .docx.
     """
     def _create_word_from_form(self, form_data: dict) -> io.BytesIO:
 

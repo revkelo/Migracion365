@@ -16,9 +16,6 @@ import time
 import logging
 from typing import Callable, Optional
 import threading
-import re
-import io
-
 from config import PROGRESS_FILE, LOG_FILE, GOOGLE_EXPORT_FORMATS
 from utils import load_progress, save_progress, sanitize_filename
 from google_service import GoogleService
@@ -35,9 +32,30 @@ class ConnectionLost(Exception):
     pass
 
 
+"""
+Orquesta el proceso de migración directa de Google Drive a OneDrive.
+
+Atributos:
+    ERROR_LOG (str): Nombre del archivo donde se anotan errores de migración.
+"""
 class DirectMigrator:
     ERROR_LOG = 'migration_errors.txt'
 
+
+    """
+    Inicializa el migrador:
+
+    - Configura callbacks y carpeta base en OneDrive.
+    - Autentica con GoogleService y OneDriveService.
+    - Verifica que el correo de Google y OneDrive coincidan.
+    - Carga progreso previo desde PROGRESS_FILE.
+    - Inicializa logger.
+    
+    Args:
+        onedrive_folder (str): Ruta de carpeta base en OneDrive (sin slash inicial).
+        cancel_event (threading.Event | None): Evento para señalizar cancelación desde la UI.
+        status_callback (callable | None): Función para notificar mensajes de estado (por ejemplo, a la GUI).
+    """
     def __init__(
         self,
         onedrive_folder: str = '',
@@ -45,86 +63,93 @@ class DirectMigrator:
         status_callback: Optional[Callable[[str], None]] = None,
 
     ):
-        # Callbacks y configuraciones iniciales
+
         self.status_callback = status_callback
         self.onedrive_folder = onedrive_folder.strip('/')
 
         self.cancel_event = cancel_event
-
-        # Autenticación con Google Drive
         self._update_status("Autenticando con Google Drive...")
         self.google = GoogleService()
-
-    
-
-        # Autenticación con OneDrive
         self._update_status("Autenticando con OneDrive...")
         self.one = OneDriveService()
-
         self._update_status("Autenticación completa. Preparando migración...")
         self.progress = load_progress(PROGRESS_FILE)
 
-        # Verificación de que el correo de Google y OneDrive coincidan
         correo_google = self.google.usuario
         correo_onedrive = self.one.usuario
         if correo_google != correo_onedrive:
-            # Inicializar el logger antes de arrojar la excepción
+
             self._init_logger()
             self.logger.error("Los correos de Google y OneDrive no coinciden. Cancelando migración.")
             raise MigrationCancelled("Los correos de autenticación no coinciden.")
 
-        # Inicializar logger (si no se inicializó aún)
+
         self._init_logger()
         self.logger.info("DirectMigrator inicializado correctamente.")
-
+        
+        
+    """
+    Configura el logger de la clase 'DirectMigrator' solo si aún no tiene handlers.
+    Evita duplicar mensajes si se instancian múltiples migrators.
+    """
     def _init_logger(self):
-        """
-        Configura el logger de la clase 'DirectMigrator' solo si aún no tiene handlers.
-        Así evitamos que, al instanciar varias veces DirectMigrator, se dupliquen los mensajes.
-        """
-        # Obtengo el logger global para esta clase
+
         logger = logging.getLogger('DirectMigrator')
-        # Si ya tiene handlers, significa que ya se configuró antes: no agrego nada de nuevo
+
         if logger.handlers:
             self.logger = logger
             return
 
-        # Si no tenía handlers, lo inicializo una sola vez
+
         logger.setLevel(logging.INFO)
 
-        # Handler de consola
+
         ch = logging.StreamHandler()
         ch.setFormatter(logging.Formatter("%(asctime)s — %(levelname)s — %(message)s"))
         logger.addHandler(ch)
 
-        # FileHandler para guardar en LOG_FILE
+
         fh = logging.FileHandler(LOG_FILE, encoding="utf-8")
         fh.setFormatter(logging.Formatter("%(asctime)s — %(levelname)s — %(message)s"))
         logger.addHandler(fh)
 
-        # Asigno el logger a la instancia
+
         self.logger = logger
 
+    """
+    Llama al callback de estado si fue provisto (por ejemplo, para actualizar la GUI).
 
+    Args:
+        msg (str): Mensaje de estado.
+    """
     def _update_status(self, msg: str):
-        """Llama al callback de estado si fue provisto."""
+
         if self.status_callback:
             self.status_callback(msg)
 
+    """
+    Método principal que migra archivos de 'Mi unidad' y luego lanza 
+    la migración de Unidades Compartidas si corresponde.
+
+    Pasos:
+    1. Obtener lista de archivos exportables en "Mi unidad" y contarlos.
+    2. Obtener lista de archivos exportables en Unidades Compartidas donde el usuario es "organizer".
+    3. Calcular total de tareas para la barra de progreso.
+    4. Migrar archivos de "Mi unidad": descargar/exportar + subir a OneDrive.
+    5. Marcar cada archivo migrado en el progreso y guardarlo.
+    6. Migrar Unidades Compartidas en un método separado `_migrar_unidades_compartidas`.
+    
+    Args:
+        skip_existing (bool): Si es True, salta archivos ya migrados según PROGRESS_FILE.
+        progress_callback (callable | None): Callback (processed, total, name) para progreso global.
+        file_progress_callback (callable | None): Callback (bytes_sent, total_bytes, name) para progreso por archivo.
+    """
     def migrate(
         self,
         skip_existing: bool = True,
         progress_callback: Optional[Callable[[int, int, str], None]] = None,
         file_progress_callback: Optional[Callable[[int, int, str], None]] = None
     ):
-        """
-        Método principal que migra archivos de 'Mi unidad' y luego lanza 
-        la migración de Unidades Compartidas si corresponde. 
-        Ahora calcula el total de archivos exportables en ambos ámbitos
-        antes de comenzar, para que la barra de progreso refleje todo el proceso.
-        """
-
-        # 1) Obtener lista de archivos exportables de "Mi unidad"
         self.logger.info("Obteniendo archivos exportables de 'Mi unidad'...")
         self._update_status("Obteniendo archivos de 'Mi unidad'...")
         folders, files, _ = self.google.list_files_and_folders()
@@ -134,17 +159,15 @@ class DirectMigrator:
         ]
         mi_total = len(mi_entries)
 
-        # 2) Obtener lista de archivos exportables en Unidades Compartidas donde el usuario es organizer
         self.logger.info("Contando archivos exportables en Unidades Compartidas...")
         self._update_status("Contando archivos en Unidades Compartidas...")
-        # Inicializar contador de archivos compartidos
+
         shared_total = 0
 
-        # Primero listamos todas las Unidades Compartidas
         unidades = self.google.listar_unidades_compartidas()
         for unidad in unidades:
             permisos = self.google.listar_permisos(unidad['id'])
-            # Filtrar solo si el usuario es organizer en esa unidad
+
             admins = [
                 p.get('emailAddress') or p.get('domain') or p['type']
                 for p in permisos
@@ -153,27 +176,25 @@ class DirectMigrator:
             if self.google.usuario not in admins:
                 continue
 
-            # Listar todo el contenido (archivos y carpetas) de esa unidad
+
             archivos = self.google.listar_contenido_drive(unidad['id'])
-            # Contar únicamente aquellos exportables
+
             for a in archivos:
                 if a['mimeType'] in GOOGLE_EXPORT_FORMATS:
                     shared_total += 1
 
-        # 3) Sumar totales para saber cuántos archivos en total vamos a migrar
+
         total_tasks = mi_total + shared_total
         self.logger.info(f"Total de archivos a migrar: {total_tasks} (Mi unidad: {mi_total}, Unidades Compartidas: {shared_total})")
         self._update_status(f"Total de archivos a migrar: {total_tasks} (Mi unidad: {mi_total}, Unidades Compartidas: {shared_total})")
 
-        # 4) Inicializar contador de archivos procesados
         processed = 0
 
-        # 5) Empezar migración de "Mi unidad"
         self.logger.info("Iniciando migración de 'Mi unidad'...")
         self._update_status("Obteniendo archivos de Google Drive...")
 
         for info in mi_entries:
-            # 5.1) Verificar cancelación
+
             if self.cancel_event and self.cancel_event.is_set():
                 self.logger.info("Migración cancelada por usuario")
                 return
@@ -182,14 +203,13 @@ class DirectMigrator:
             raw_name = info['name']
             name = raw_name.replace('\r', '').replace('\n', ' ').strip()
 
-            # 5.2) Saltar si ya está migrado
             if skip_existing and fid in self.progress.get('migrated_files', set()):
                 processed += 1
                 if progress_callback:
                     progress_callback(processed, total_tasks, name)
                 continue
 
-            # 5.3) Reconstruir ruta en Mi unidad
+
             parents = info.get('parents') or []
             if parents:
                 path_parts = self.google.get_folder_path(parents[0], folders)
@@ -199,7 +219,7 @@ class DirectMigrator:
             drive_path = f"{folder_path}/{name}" if folder_path else name
 
             try:
-                # 5.4) Descargar/Exportar
+
                 t0 = time.perf_counter()
                 data, ext_name = self.google.download_file(info)
                 t1 = time.perf_counter()
@@ -215,12 +235,10 @@ class DirectMigrator:
                         progress_callback(processed, total_tasks, name)
                     continue
 
-                # 5.5) Preparar bytes para callback de progreso
                 data.seek(0, 2)
                 total_bytes = data.tell()
                 data.seek(0)
 
-                # 5.6) Subir a OneDrive
                 remote_path = f"{self.onedrive_folder}/{folder_path}/{ext_name}".lstrip('/')
                 t2 = time.perf_counter()
                 self.one.upload(
@@ -235,7 +253,7 @@ class DirectMigrator:
                 t3 = time.perf_counter()
                 self.logger.info(f"Subida '{name}': {t3 - t2:.2f}s")
 
-                # 5.7) Marcar como migrado y guardar
+
                 self.progress.setdefault('migrated_files', set()).add(fid)
                 save_progress(PROGRESS_FILE, self.progress)
 
@@ -249,14 +267,13 @@ class DirectMigrator:
                 ):
                     raise ConnectionLost(mensaje)
 
-            # 5.8) Incrementar y notificar progreso
+
             processed += 1
             if progress_callback:
                 progress_callback(processed, total_tasks, name)
 
         self.logger.info("Migración de 'Mi unidad' completada.")
 
-        # 6) Migración de Unidades Compartidas
         try:
             self.logger.info("Iniciando migración de Unidades Compartidas...")
             self._migrar_unidades_compartidas(processed, total_tasks, progress_callback)
@@ -265,16 +282,21 @@ class DirectMigrator:
             self.logger.error(f"Error al migrar Unidades Compartidas: {str(e)}")
             
         
+    """
+    Migra archivos de las Unidades Compartidas donde el usuario es organizador.
 
+    Args:
+        processed (int): Cantidad de archivos ya procesados (de "Mi unidad").
+        total_tasks (int): Total de archivos a migrar (incluyendo "Mi unidad" y compartidos).
+        progress_callback (callable | None): Callback de progreso global.
+    """
     def _migrar_unidades_compartidas(
         self,
         processed: int,
         total_tasks: int,
         progress_callback: Optional[Callable[[int, int, str], None]]
     ):
-        """
-        ...
-        """
+
         usuario_actual = self.google.usuario
         unidades = self.google.listar_unidades_compartidas()
 
@@ -352,42 +374,37 @@ class DirectMigrator:
                             f"Compartido - Subida '{file_name}' en '{ruta_completa}'"
                         )
 
-                        # Marcar como migrado y guardar progreso
+
                         self.progress.setdefault('migrated_files', set()).add(file_id)
                         save_progress(PROGRESS_FILE, self.progress)
 
                 except Exception as e:
                     mensaje = str(e)
 
-                    # 1) Registrar en el logger de la clase
                     self.logger.error(
                         f"Error al migrar archivo '{file_name}' en '{ruta_completa}': {mensaje}"
                     )
 
-                    # 2) ***Añadir escritura en el fichero de errores***
-                    #     Para que quede guardado en migration_errors.txt
-                    #     Usamos el método _log_error con la ruta y mensaje
+
                     drive_path = f"{ruta_completa}/{file_name}"
                     self._log_error(drive_path, mensaje)
-
-                    # 3) Si es un error crítico de red, propagamos ConnectionLost
                     if "timed out" in mensaje.lower() or "unable to find the server" in mensaje.lower():
                         raise ConnectionLost(mensaje)
 
-                    # 4) Además lo mostramos en consola (o GUI) para feedback inmediato
                     print(f"[ERROR] En Unidad Compartida '{drive_path}' → {mensaje}")
 
                 processed += 1
                 if progress_callback:
                     progress_callback(processed, total_tasks, file_name)
 
+    """
+    Añade una entrada en el log de errores (migration_errors.txt).
+    Formato de cada línea: 'YYYY-MM-DD HH:MM:SS - ruta - mensaje'
 
-
-
-
-
-
-
+    Args:
+        drive_path (str): Ruta interna del archivo que falló.
+        message (str): Mensaje de error.
+    """
     def _log_error(self, drive_path: str, message: str) -> None:
         """
         Añade una entrada en el log de errores (una sola línea).
@@ -401,10 +418,11 @@ class DirectMigrator:
         except Exception:
             self.logger.error(f"Imposible escribir error en {self.ERROR_LOG}")
 
+    """
+    Traduce mensajes de error crudos en algo legible para el usuario.
+    """
     def _format_error(self, raw_msg: str) -> str:
-        """
-        Traduce mensajes de error crudos en algo legible para el usuario.
-        """
+  
         msg = str(raw_msg)
 
         if 'exportSizeLimitExceeded' in msg:
@@ -428,5 +446,4 @@ class DirectMigrator:
         if 'Backend Error' in msg:
             return "Error temporal de Google Drive."
 
-        # Si no coincide con ningún patrón conocido, retorna el mensaje original
         return msg
