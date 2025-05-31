@@ -48,35 +48,46 @@ class SharedDriveMigrator:
                 size=len(acceso_txt.encode("utf-8"))
             )
 
-            # Archivos reales (filtrados por tipo compatible)
+            # Archivos y carpetas
             archivos = self.google.listar_contenido_drive(unidad['id'])
-            archivos_filtrados = [
-                a for a in archivos
-                if a['mimeType'] in GOOGLE_EXPORT_FORMATS
-            ]
 
-            for archivo in archivos_filtrados:
-                nombre_archivo = archivo['name']
-                mime_type = archivo['mimeType']
+            folders_dict = {
+                a['id']: a for a in archivos if a['mimeType'] == 'application/vnd.google-apps.folder'
+            }
+            archivos_dict = {
+                a['id']: a for a in archivos if a['mimeType'] in GOOGLE_EXPORT_FORMATS
+            }
+
+            for archivo in archivos_dict.values():
                 file_id = archivo['id']
+                file_name = archivo['name']
+                mime_type = archivo['mimeType']
+                parents = archivo.get('parents') or []
 
-                info = {
-                    'id': file_id,
-                    'name': nombre_archivo,
-                    'mimeType': mime_type
-                }
+                # Reconstruir ruta de carpetas completa como en "Mi unidad"
+                if parents:
+                    path_parts = self.google.get_folder_path(parents[0], folders_dict)
+                else:
+                    path_parts = []
+
+                folder_path = "/".join(path_parts)
+                ruta_completa = f"{ruta_onedrive}/{folder_path}".strip("/")
+
+                # Crear ruta en OneDrive si es necesario
+                if ruta_completa:
+                    self.onedrive.create_folder(ruta_completa)
 
                 try:
-                    data, nombre_final = self.google.download_file(info)
-
+                    data, final_name = self.google.download_file(archivo)
                     if data:
                         data.seek(0, 2)
                         total_bytes = data.tell()
                         data.seek(0)
+                        remote_path = f"{ruta_completa}/{final_name}".strip("/")
                         self.onedrive.upload(
                             file_data=data,
-                            remote_path=f"{ruta_onedrive}/{nombre_final}",
+                            remote_path=remote_path,
                             size=total_bytes
                         )
                 except Exception as e:
-                    print(f"Error al migrar archivo {nombre_archivo}: {str(e)}")
+                    print(f"Error al migrar archivo {file_name}: {str(e)}")

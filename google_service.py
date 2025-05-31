@@ -193,7 +193,7 @@ class GoogleService:
                 q="trashed = false",
                 pageSize=1000,
                 pageToken=page_token,
-                fields="nextPageToken, files(id, name, mimeType)"
+                fields="nextPageToken, files(id, name, mimeType, parents)"
             ).execute()
             archivos.extend(res.get("files", []))
             page_token = res.get("nextPageToken")
