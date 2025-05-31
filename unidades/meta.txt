@@ -1,0 +1,28 @@
+🔧 Funcionalidades que debe cumplir DirectMigrator
+📁 1. Migración de "Mi unidad"
+✅ Descargar solo archivos compatibles (Docs, Sheets, Slides, Forms, archivos normales).
+
+✅ Exportarlos correctamente con GoogleService.download_file().
+
+✅ Preservar la estructura de carpetas.
+
+✅ Soporte para reanudar (progreso guardado).
+
+✅ Mostrar progreso y loguear acciones.
+
+🤝 2. Migración de Unidades Compartidas
+✅ Solo migrar si el usuario es organizador de la unidad.
+
+✅ Crear en OneDrive la carpeta Unidades Compartidas/<nombre de la unidad>.
+
+✅ Subir solo archivos válidos usando GoogleService.download_file(), incluyendo formularios convertidos.
+
+✅ Preservar la estructura de carpetas internas igual que en "Mi unidad".
+
+✅ Generar dentro de cada unidad:
+
+roles.txt con todos los usuarios y sus roles (en español),
+
+acceso.txt con los correos que no son organizadores.
+
+✅ Loguear errores y progreso.
