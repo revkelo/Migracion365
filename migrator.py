@@ -74,22 +74,33 @@ class DirectMigrator:
         self.logger.info("DirectMigrator inicializado correctamente.")
 
     def _init_logger(self):
-        """Configura el logger de la clase si no existe aún."""
-        if hasattr(self, 'logger') and self.logger.handlers:
-            return  # Ya está inicializado
+        """
+        Configura el logger de la clase 'DirectMigrator' solo si aún no tiene handlers.
+        Así evitamos que, al instanciar varias veces DirectMigrator, se dupliquen los mensajes.
+        """
+        # Obtengo el logger global para esta clase
+        logger = logging.getLogger('DirectMigrator')
+        # Si ya tiene handlers, significa que ya se configuró antes: no agrego nada de nuevo
+        if logger.handlers:
+            self.logger = logger
+            return
 
-        self.logger = logging.getLogger('DirectMigrator')
-        self.logger.setLevel(logging.INFO)
+        # Si no tenía handlers, lo inicializo una sola vez
+        logger.setLevel(logging.INFO)
 
         # Handler de consola
         ch = logging.StreamHandler()
         ch.setFormatter(logging.Formatter("%(asctime)s — %(levelname)s — %(message)s"))
-        self.logger.addHandler(ch)
+        logger.addHandler(ch)
 
         # FileHandler para guardar en LOG_FILE
         fh = logging.FileHandler(LOG_FILE, encoding="utf-8")
         fh.setFormatter(logging.Formatter("%(asctime)s — %(levelname)s — %(message)s"))
-        self.logger.addHandler(fh)
+        logger.addHandler(fh)
+
+        # Asigno el logger a la instancia
+        self.logger = logger
+
 
     def _update_status(self, msg: str):
         """Llama al callback de estado si fue provisto."""
@@ -261,8 +272,9 @@ class DirectMigrator:
         Método privado que:
         - Lista Unidades Compartidas, filtra por organizer.
         - Por cada archivo exportable dentro de cada unidad:
-            * Si ya está migrado (en self.progress), lo omite SIN imprimir nada.
-            * De lo contrario, descarga/exporta y sube a OneDrive.
+            * Si cancel_event está seteado, retorna inmediatamente.
+            * Si ya está migrado (skip_existing), lo omite sin imprimir nada.
+            * Descarga/exporta y sube a OneDrive.
             * Incrementa `processed` y llama a progress_callback.
             * Registra el ID en el JSON de progreso para evitar duplicados.
         """
@@ -270,95 +282,116 @@ class DirectMigrator:
         usuario_actual = self.google.usuario
         unidades = self.google.listar_unidades_compartidas()
 
+        # --- Inicio del bucle sobre cada Unidad Compartida ---
         for unidad in unidades:
+            # 1) VERIFICACIÓN: si el usuario ya presionó "Cancelar", salimos YA
+            if self.cancel_event and self.cancel_event.is_set():
+                self.logger.info(
+                    "Migración cancelada por usuario (antes de procesar unidad compartida)"
+                )
+                return
+
             permisos = self.google.listar_permisos(unidad['id'])
             admins = [
                 p.get('emailAddress') or p.get('domain') or p['type']
                 for p in permisos
                 if p['role'] == 'organizer'
             ]
-
-            # Solo migrar si el usuario es organizer de esta unidad
             if usuario_actual not in admins:
                 continue
 
-            nombre_unidad  = sanitize_filename(unidad['name'])
-            ruta_onedrive  = f"Unidades Compartidas/{nombre_unidad}"
+            # Nombre de la unidad compartida (sanitizado para OneDrive)
+            nombre_unidad = sanitize_filename(unidad['name'])
+            ruta_onedrive = f"Unidades Compartidas/{nombre_unidad}"
+            # Creamos la carpeta raíz de esta unidad en OneDrive
             self.one.create_folder(ruta_onedrive)
 
-            # Aquí podrías crear roles.txt y acceso.txt si lo deseas…
-
-            # Obtener todo el contenido (archivos + carpetas) de la unidad
+            # Listamos todo el contenido (archivos + carpetas) de la unidad
             archivos = self.google.listar_contenido_drive(unidad['id'])
-
-            # Separar carpetas y archivos exportables
-            folders_dict   = {
+            # Mapas de carpetas y archivos exportables
+            folders_dict = {
                 a['id']: a for a in archivos
                 if a['mimeType'] == 'application/vnd.google-apps.folder'
             }
-            archivos_dict  = {
+            archivos_dict = {
                 a['id']: a for a in archivos
                 if a['mimeType'] in GOOGLE_EXPORT_FORMATS
             }
 
+            # --- Bucle sobre cada archivo exportable en la unidad ---
             for archivo in archivos_dict.values():
-                file_id   = archivo['id']
-                file_name = archivo['name']
-                parents   = archivo.get('parents') or []
+                # 2) VERIFICACIÓN: si cancel_event se activó durante el bucle de archivos, retornamos
+                if self.cancel_event and self.cancel_event.is_set():
+                    self.logger.info(
+                        f"Migración cancelada por usuario (en unidad compartida '{nombre_unidad}')"
+                    )
+                    return
 
-                # --- CHEQUEO PARA OMITIR SI YA ESTÁ MIGRADO ---
+                file_id = archivo['id']
+                file_name = archivo['name']
+                parents = archivo.get('parents') or []
+
+                # CHEQUEO: si ya está migrado, lo omitimos sin imprimir
                 if file_id in self.progress.get('migrated_files', set()):
-                    # Ya no imprimimos nada aquí; simplemente avanzamos el contador:
                     processed += 1
                     if progress_callback:
                         progress_callback(processed, total_tasks, file_name)
                     continue
-                # --- FIN DEL CHEQUEO ---
 
-                # 1) Reconstruir ruta interna dentro de la unidad compartida
+                # Reconstruir ruta interna dentro de la unidad compartida
                 if parents:
-                    path_parts   = self.google.get_folder_path(parents[0], folders_dict)
+                    path_parts = self.google.get_folder_path(parents[0], folders_dict)
                 else:
-                    path_parts   = []
+                    path_parts = []
                 ruta_interna = "/".join(path_parts)
                 ruta_completa = f"{ruta_onedrive}/{ruta_interna}".strip("/")
 
-                # Asegurarse de que la carpeta exista en OneDrive
+                # Crear carpetas intermedias en OneDrive si hace falta
                 if ruta_completa:
                     self.one.create_folder(ruta_completa)
 
                 try:
-                    # 2) Descargar/Exportar desde Google Drive
+                    # Descarga/Exportación desde Google Drive
                     data, final_name = self.google.download_file(archivo)
                     if data:
-                        # 3) Preparar el buffer para medir tamaño
+                        # Medimos tamaño para la subida
                         data.seek(0, 2)
                         total_bytes = data.tell()
                         data.seek(0)
 
-                        # 4) Definir ruta remota en OneDrive
+                        # Definir ruta remota en OneDrive
                         remote_path = f"{ruta_completa}/{final_name}".strip("/")
-
-                        # 5) Subir a OneDrive
+                        # Subimos sin callback de progreso por archivo (o puedes agregar uno si lo deseas)
                         self.one.upload(
                             file_data=data,
                             remote_path=remote_path,
                             size=total_bytes
                         )
-                        self.logger.info(f"Compartido - Subida '{file_name}' en '{ruta_completa}'")
+                        self.logger.info(
+                            f"Compartido - Subida '{file_name}' en '{ruta_completa}'"
+                        )
 
-                        # 6) Registrar el ID del archivo como migrado
+                        # Marcar archivo como migrado y guardar progreso
                         self.progress.setdefault('migrated_files', set()).add(file_id)
                         save_progress(PROGRESS_FILE, self.progress)
 
                 except Exception as e:
                     mensaje = str(e)
-                    self.logger.error(f"Error al migrar archivo '{file_name}' en '{ruta_completa}': {mensaje}")
+                    self.logger.error(
+                        f"Error al migrar archivo '{file_name}' en '{ruta_completa}': {mensaje}"
+                    )
+                    # Si es un error de red severo, lanzar ConnectionLost
+                    if "timed out" in mensaje.lower() or "unable to find the server" in mensaje.lower():
+                        raise ConnectionLost(mensaje)
+                    # En otros casos, solo imprimimos el error
+                    print(f"[ERROR] En Unidad Compartida '{ruta_completa}/{file_name}' → {mensaje}")
 
-                # 7) Incrementar contador y notificar callback
+                # Actualizar contador y progreso global
                 processed += 1
                 if progress_callback:
                     progress_callback(processed, total_tasks, file_name)
+
+
 
 
 

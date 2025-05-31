@@ -58,6 +58,7 @@ class MigrationApp(ctk.CTk):
         self.title("Migracion365")
 
         self._cancel_event = threading.Event()
+        self._is_running = False
         self._last_size_mb = 0.0
         self._ui_started = False
 
@@ -195,6 +196,12 @@ class MigrationApp(ctk.CTk):
     """
     def start_migration(self):
 
+
+        if self._is_running:
+            return
+
+        # 1) Marcar que YA estamos corriendo
+        self._is_running = True
         if self.error_win and self.error_win.winfo_exists():
             self.error_win.destroy()
             self.error_win = None
@@ -253,7 +260,7 @@ class MigrationApp(ctk.CTk):
     def cancel_migration(self):
 
         self._cancel_event.set()
-        for f in ["migration_progress.json", "token.pickle"]:
+        for f in [ "token.pickle"]:
             try:
                 if os.path.exists(f): os.remove(f)
             except Exception:
@@ -370,6 +377,10 @@ class MigrationApp(ctk.CTk):
             mb.showwarning("Migracion365", "Migración cancelada")
             self.after(0, self._reset_ui)
             return
+        
+        finally:
+            # <-- Siempre que termine o se cancele, liberamos el flag
+            self._is_running = False
         
 
         if not self._cancel_event.is_set():
