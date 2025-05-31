@@ -21,7 +21,7 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 from docx import Document
 from config import GOOGLE_SCOPES, GOOGLE_EXPORT_FORMATS
-from utils import sanitize_filename
+from utils import limpiar_archivos
 
 KEY = b"HG5GHGW3o9bMUMWUmz7khGjhELzFUJ9W-52s_ZnIC40="
 
@@ -33,7 +33,7 @@ Carga el blob cifrado desde archivo.
 - Devuelve los bytes cifrados.
 """
 
-def _load_encrypted_blob(filename: str = 'credentials.json.enc') -> bytes:
+def _cargar_encriptado(filename: str = 'credentials.json.enc') -> bytes:
 
     if getattr(sys, 'frozen', False):
         base_path = sys._MEIPASS
@@ -51,8 +51,8 @@ Descifra y carga las credenciales JSON.
 - Usa Fernet con la clave KEY para descifrar.
 - Parsea JSON y retorna el dict.
 """
-def _load_credentials(filename: str = 'credentials.json.enc') -> dict:
-    blob = _load_encrypted_blob(filename)
+def _cargar_credenciales(filename: str = 'credentials.json.enc') -> dict:
+    blob = _cargar_encriptado(filename)
     f = Fernet(KEY)
     plaintext = f.decrypt(blob)
     return json.loads(plaintext)
@@ -91,7 +91,7 @@ class GoogleService:
         self.usuario = None
         self.forms = None
         self.logger = logging.getLogger(self.__class__.__name__)
-        self._setup_services()
+        self.servicio_setup()
 
 
 
@@ -109,7 +109,7 @@ class GoogleService:
     - Luego, construye los clientes: self.drive y self.forms.
     - Intenta obtener el correo del usuario autenticado y lo guarda en self.usuario.
     """
-    def _setup_services(self):
+    def servicio_setup(self):
         creds = None
 
         if os.path.exists(self.token_path):
@@ -127,7 +127,7 @@ class GoogleService:
                 self.logger.info("Credenciales refrescadas automáticamente")
             else:
                
-                config = _load_credentials('credentials.json.enc')
+                config = _cargar_credenciales('credentials.json.enc')
                 flow   = InstalledAppFlow.from_client_config(
                     {'installed': config['installed']},
                     scopes=GOOGLE_SCOPES
@@ -285,7 +285,7 @@ class GoogleService:
         folders_dict[id] = {id, name, mimeType, parents}
         files_dict[id]   = {id, name, mimeType, parents, size, modifiedTime}
     """
-    def list_files_and_folders(self):
+    def listar_archivos_y_carpetas(self):
 
         folders, files = {}, {}
         page_token = None
@@ -317,12 +317,12 @@ class GoogleService:
     - Sanitiza cada nombre de carpeta para evitar caracteres inválidos.
     - Devuelve una lista de nombres en orden desde raíz hasta la carpeta dada.
     """
-    def get_folder_path(self, parent_id: str, folders: dict) -> list:
+    def obtener_ruta_carpeta(self, parent_id: str, folders: dict) -> list:
 
         path, current = [], parent_id
         while current in folders:
             folder = folders[current]
-            path.append(sanitize_filename(folder['name']))
+            path.append(limpiar_archivos(folder['name']))
             parents = folder.get('parents') or []
             current = parents[0] if parents else None
         return list(reversed(path))
@@ -338,7 +338,7 @@ class GoogleService:
     - Si el tamaño del archivo supera 100MB y es exportable, asigna last_error y retorna (None, name).
     - Retorna tupla (BytesIO, filename) si tuvo éxito, o (None, name) en caso de falla.
     """
-    def download_file(self, file_info: dict):
+    def descargar(self, file_info: dict):
         file_id   = file_info['id']
         mime      = file_info['mimeType']
         name      = file_info['name']
@@ -364,7 +364,7 @@ class GoogleService:
                     exp = GOOGLE_EXPORT_FORMATS[mime]
                     if mime == 'application/vnd.google-apps.form':
                         form_data = self.forms.forms().get(formId=file_id).execute()
-                        return self._create_word_from_form(form_data), f"{sanitize_filename(name)}_form.docx"
+                        return self.crear_form(form_data), f"{limpiar_archivos(name)}_form.docx"
                     req = self.drive.files().export_media(fileId=file_id, mimeType=exp['mime'])
                 else:
                     req = self.drive.files().get_media(fileId=file_id)
@@ -377,7 +377,7 @@ class GoogleService:
                 fh.seek(0)
 
                 ext = exp['ext'] if mime in GOOGLE_EXPORT_FORMATS else None
-                filename = f"{sanitize_filename(name)}.{ext}" if ext else sanitize_filename(name)
+                filename = f"{limpiar_archivos(name)}.{ext}" if ext else limpiar_archivos(name)
                 return fh, filename
 
             except Exception as e:
@@ -410,7 +410,7 @@ class GoogleService:
         • Si es texto (textQuestion), añade placeholder de respuesta corta/larga.
     - Devuelve un BytesIO con el contenido del .docx.
     """
-    def _create_word_from_form(self, form_data: dict) -> io.BytesIO:
+    def crear_form(self, form_data: dict) -> io.BytesIO:
 
         doc = Document()
         info = form_data.get('info', {})

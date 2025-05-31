@@ -17,7 +17,7 @@ import logging
 from typing import Callable, Optional
 import threading
 from config import PROGRESS_FILE, LOG_FILE, GOOGLE_EXPORT_FORMATS
-from utils import load_progress, save_progress, sanitize_filename
+from utils import cargar_proceso, guardar_progreso, limpiar_archivos
 from google_service import GoogleService
 from onedrive_service import OneDriveService
 
@@ -68,12 +68,12 @@ class DirectMigrator:
         self.onedrive_folder = onedrive_folder.strip('/')
 
         self.cancel_event = cancel_event
-        self._update_status("Autenticando con Google Drive...")
+        self.subida_estado("Autenticando con Google Drive...")
         self.google = GoogleService()
-        self._update_status("Autenticando con OneDrive...")
+        self.subida_estado("Autenticando con OneDrive...")
         self.one = OneDriveService()
-        self._update_status("Autenticación completa. Preparando migración...")
-        self.progress = load_progress(PROGRESS_FILE)
+        self.subida_estado("Autenticación completa. Preparando migración...")
+        self.progress = cargar_proceso(PROGRESS_FILE)
 
         correo_google = self.google.usuario
         correo_onedrive = self.one.usuario
@@ -122,7 +122,7 @@ class DirectMigrator:
     Args:
         msg (str): Mensaje de estado.
     """
-    def _update_status(self, msg: str):
+    def subida_estado(self, msg: str):
 
         if self.status_callback:
             self.status_callback(msg)
@@ -144,15 +144,15 @@ class DirectMigrator:
         progress_callback (callable | None): Callback (processed, total, name) para progreso global.
         file_progress_callback (callable | None): Callback (bytes_sent, total_bytes, name) para progreso por archivo.
     """
-    def migrate(
+    def migrar(
         self,
         skip_existing: bool = True,
         progress_callback: Optional[Callable[[int, int, str], None]] = None,
         file_progress_callback: Optional[Callable[[int, int, str], None]] = None
     ):
         self.logger.info("Obteniendo archivos exportables de 'Mi unidad'...")
-        self._update_status("Obteniendo archivos de 'Mi unidad'...")
-        folders, files, _ = self.google.list_files_and_folders()
+        self.subida_estado("Obteniendo archivos de 'Mi unidad'...")
+        folders, files, _ = self.google.listar_archivos_y_carpetas()
         mi_entries = [
             f for f in files.values()
             if f['mimeType'] in GOOGLE_EXPORT_FORMATS
@@ -160,7 +160,7 @@ class DirectMigrator:
         mi_total = len(mi_entries)
 
         self.logger.info("Contando archivos exportables en Unidades Compartidas...")
-        self._update_status("Contando archivos en Unidades Compartidas...")
+        self.subida_estado("Contando archivos en Unidades Compartidas...")
 
         shared_total = 0
 
@@ -186,12 +186,12 @@ class DirectMigrator:
 
         total_tasks = mi_total + shared_total
         self.logger.info(f"Total de archivos a migrar: {total_tasks} (Mi unidad: {mi_total}, Unidades Compartidas: {shared_total})")
-        self._update_status(f"Total de archivos a migrar: {total_tasks} (Mi unidad: {mi_total}, Unidades Compartidas: {shared_total})")
+        self.subida_estado(f"Total de archivos a migrar: {total_tasks} (Mi unidad: {mi_total}, Unidades Compartidas: {shared_total})")
 
         processed = 0
 
         self.logger.info("Iniciando migración de 'Mi unidad'...")
-        self._update_status("Obteniendo archivos de Google Drive...")
+        self.subida_estado("Obteniendo archivos de Google Drive...")
 
         for info in mi_entries:
 
@@ -212,7 +212,7 @@ class DirectMigrator:
 
             parents = info.get('parents') or []
             if parents:
-                path_parts = self.google.get_folder_path(parents[0], folders)
+                path_parts = self.google.obtener_ruta_carpeta(parents[0], folders)
             else:
                 path_parts = []
             folder_path = '/'.join(path_parts)
@@ -221,7 +221,7 @@ class DirectMigrator:
             try:
 
                 t0 = time.perf_counter()
-                data, ext_name = self.google.download_file(info)
+                data, ext_name = self.google.descargar(info)
                 t1 = time.perf_counter()
                 self.logger.info(f"Descarga '{name}': {t1 - t0:.2f}s")
 
@@ -241,7 +241,7 @@ class DirectMigrator:
 
                 remote_path = f"{self.onedrive_folder}/{folder_path}/{ext_name}".lstrip('/')
                 t2 = time.perf_counter()
-                self.one.upload(
+                self.one.subir(
                     file_data=data,
                     remote_path=remote_path,
                     size=total_bytes,
@@ -255,7 +255,7 @@ class DirectMigrator:
 
 
                 self.progress.setdefault('migrated_files', set()).add(fid)
-                save_progress(PROGRESS_FILE, self.progress)
+                guardar_progreso(PROGRESS_FILE, self.progress)
 
             except Exception as e:
                 raw_msg = str(e)
@@ -316,9 +316,9 @@ class DirectMigrator:
             if usuario_actual not in admins:
                 continue
 
-            nombre_unidad = sanitize_filename(unidad['name'])
+            nombre_unidad = limpiar_archivos(unidad['name'])
             ruta_onedrive = f"Unidades Compartidas/{nombre_unidad}"
-            self.one.create_folder(ruta_onedrive)
+            self.one.crear_carpeta(ruta_onedrive)
 
             archivos = self.google.listar_contenido_drive(unidad['id'])
             folders_dict = {
@@ -348,24 +348,24 @@ class DirectMigrator:
                     continue
 
                 if parents:
-                    path_parts = self.google.get_folder_path(parents[0], folders_dict)
+                    path_parts = self.google.obtener_ruta_carpeta(parents[0], folders_dict)
                 else:
                     path_parts = []
                 ruta_interna = "/".join(path_parts)
                 ruta_completa = f"{ruta_onedrive}/{ruta_interna}".strip("/")
 
                 if ruta_completa:
-                    self.one.create_folder(ruta_completa)
+                    self.one.crear_carpeta(ruta_completa)
 
                 try:
-                    data, final_name = self.google.download_file(archivo)
+                    data, final_name = self.google.descargar(archivo)
                     if data:
                         data.seek(0, 2)
                         total_bytes = data.tell()
                         data.seek(0)
 
                         remote_path = f"{ruta_completa}/{final_name}".strip("/")
-                        self.one.upload(
+                        self.one.subir(
                             file_data=data,
                             remote_path=remote_path,
                             size=total_bytes
@@ -376,7 +376,7 @@ class DirectMigrator:
 
 
                         self.progress.setdefault('migrated_files', set()).add(file_id)
-                        save_progress(PROGRESS_FILE, self.progress)
+                        guardar_progreso(PROGRESS_FILE, self.progress)
 
                 except Exception as e:
                     mensaje = str(e)

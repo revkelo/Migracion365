@@ -19,7 +19,7 @@ Carga el progreso de migración desde un archivo JSON.
 - Devuelve un diccionario con la clave 'migrated_files' como un set de IDs.
 - Si ocurre un error al leer o parsear, retorna un set vacío.
 """
-def load_progress(progress_file: str) -> dict:
+def cargar_proceso(progress_file: str) -> dict:
 
     if Path(progress_file).exists():
         try:
@@ -36,7 +36,7 @@ Guarda el progreso de migración en un archivo JSON.
 - Escribe el contenido con indentación de 2 espacios.
 - Captura y descarta excepciones para no interrumpir el proceso.
 """
-def save_progress(progress_file: str, data: dict):
+def guardar_progreso(progress_file: str, data: dict):
 
     to_save = {'migrated_files': list(data.get('migrated_files', []))}
     try:
@@ -48,7 +48,7 @@ def save_progress(progress_file: str, data: dict):
 
 
 """Devuelve ruta absoluta para ejecución directa"""
-def resource_path(relative_path):
+def ruta_absoluta(relative_path):
   
     try:
         base_path = sys._MEIPASS
@@ -63,7 +63,7 @@ Reemplaza caracteres inválidos en un nombre de archivo y limita su longitud.
 - Si el nombre excede 250 caracteres, recorta el nombre a 245 caracteres y conserva la extensión.
 - Retorna el nombre resultante sin espacios al inicio o final.
 """
-def sanitize_filename(filename: str) -> str:
+def limpiar_archivos(filename: str) -> str:
 
     sanitized = re.sub(r'[\\/*?:"<>|#]', '_', filename)
     if len(sanitized) > 250:
@@ -78,7 +78,7 @@ Convierte un tamaño en bytes a una cadena legible con unidad apropiada.
 - Cuando el tamaño sea menor a 1024, formatea con una decimal.
 - Para tamaños mayores a GB, utiliza TB como unidad final.
 """
-def format_size(size_bytes: int) -> str:
+def formato(size_bytes: int) -> str:
 
     for unit in ['B', 'KB', 'MB', 'GB']:
         if size_bytes < 1024.0:
