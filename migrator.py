@@ -221,19 +221,32 @@ class DirectMigrator:
             try:
 
                 t0 = time.perf_counter()
+                
                 data, ext_name = self.google.descargar(info)
                 t1 = time.perf_counter()
-                self.logger.info(f"Descarga '{name}': {t1 - t0:.2f}s")
+                self.logger.info(f"Descarga {name}: {t1-t0:.2f}s")
 
                 if data is None:
                     raw_msg = getattr(self.google, 'last_error', None)
-                    mensaje = self._format_error(raw_msg) if raw_msg else "Descarga fallida (error desconocido)"
+                    if raw_msg:
+                        mensaje = self._format_error(raw_msg)
+                    else:
+                        mensaje = "Descarga fallida (error desconocido)"
+
                     print(f"[ERROR] {drive_path} -> {mensaje}")
                     self._log_error(drive_path, mensaje)
+
+                    if mensaje == "No se pudo conectar al servidor de Google APIs.":
+                        raise ConnectionLost(mensaje)
+
                     processed += 1
                     if progress_callback:
                         progress_callback(processed, total_tasks, name)
                     continue
+
+
+
+
 
                 data.seek(0, 2)
                 total_bytes = data.tell()
