@@ -12,13 +12,15 @@ import os
 import threading
 import customtkinter as ctk
 import tkinter.messagebox as mb
-import threading
 from PIL import Image
 from google_service import GoogleService
 from migrator import DirectMigrator, MigrationCancelled,ConnectionLost
 from onedrive_service import OneDriveTokenExpired
 from archivo import ErrorApp
 from utils import ruta_absoluta
+import pygame
+
+
 
 """
 Clase principal de la GUI para la aplicación Migrador365.
@@ -87,10 +89,31 @@ class MigrationApp(ctk.CTk):
         self.onedrive_icon = self.cargar_icono(ruta_absoluta("gui/assets/onedrive.png"))
 
         self.crear_widgets()
+        try:
+            pygame.mixer.init()
+        except Exception:
+            pass
         self.after(0, self._centrar_ventana)
         self.after(200, self.mensaje_bienvenida) 
 
-        
+
+
+
+
+    def _play_notification(self, ruta_mp3: str):
+        """Reproduce el MP3 en un hilo para no congelar la GUI."""
+        def _play():
+            try:
+                # Cargar el MP3; si está sonando otro, lo detiene y reproduce éste.
+                pygame.mixer.music.load(ruta_mp3)
+                pygame.mixer.music.set_volume(0.3)
+                pygame.mixer.music.play()
+            except Exception:
+                pass
+
+        # Lo lanzamos en daemon para que no bloquee la ventana
+        threading.Thread(target=_play, daemon=True).start()
+
     """
     Centra la ventana en la pantalla según WINDOW_SIZE.
 
@@ -326,7 +349,11 @@ class MigrationApp(ctk.CTk):
 
         self.status_lbl.configure(text="Cancelado")
         self.size_lbl.configure(text="Tamaño: —")
-
+        try:
+            self._play_notification("./gui/assets/bell.mp3")
+        except Exception:
+            pass
+        self.auth_url_lbl.place_forget()
         self._ui_started = False
 
 
@@ -353,7 +380,14 @@ class MigrationApp(ctk.CTk):
                 self.error_win.lift()
             return
         
-        
+
+    def _bring_to_front(self):
+        try:
+            self.lift()
+            self.attributes("-topmost", True)
+            self.after(100, lambda: self.attributes("-topmost", False))
+        except Exception:
+            pass
 
     """
     Hilo de ejecución que llama a DirectMigrator.migrate().
@@ -400,6 +434,11 @@ class MigrationApp(ctk.CTk):
             text = f"Subiendo '{name}': {pctf*100:.0f}%"
             self.after(0, lambda: self.status_lbl.configure(text=text))
 
+        try:
+            self._play_notification("./gui/assets/bell.mp3")
+        except Exception:
+            pass
+
         try: 
             
             self.auth_url_lbl.place(relx=0.5, rely=0.90, anchor="center")
@@ -408,23 +447,38 @@ class MigrationApp(ctk.CTk):
                 cancel_event=self._cancel_event,
                 status_callback=lambda text: self.after(0, lambda: self.status_lbl.configure(text=text))
             )
+            # Autenticación completada → traemos la ventana al frente
+            try:
+                self._play_notification("./gui/assets/bell.mp3")
+            except Exception:
+                pass
+
+            self.after(0, self._bring_to_front)
             self.auth_url_lbl.place_forget()
             migrator.migrar(
                 skip_existing=True,
                 progress_callback=en_general,
                 file_progress_callback=en_archivo
             )
+
             
         except OneDriveTokenExpired as e:
-
+            self._bring_to_front
+            try:
+                self._play_notification("./gui/assets/bell.mp3")
+            except Exception:
+                pass
             self.after(0, lambda: mb.showerror(
                 "Autenticación expirada",
                 str(e)
             ))
-
+            
             return
         except ConnectionLost as e:
- 
+            try:
+                self._play_notification("./gui/assets/bell.mp3")
+            except Exception:
+                pass
             self.after(0, lambda: mb.showerror(
                 "Conexión perdida",
                 f"Se perdió la conexión a Internet:\n{e}"
@@ -432,6 +486,10 @@ class MigrationApp(ctk.CTk):
             self.after(0, self.resetear_ui)
             return
         except MigrationCancelled:
+            try:
+                self._play_notification("./gui/assets/bell.mp3")
+            except Exception:
+                pass
             mb.showwarning("Migracion365", "Migración cancelada")
             self.after(0, self.resetear_ui)
             return
@@ -479,8 +537,14 @@ class MigrationApp(ctk.CTk):
         log = DirectMigrator.ERROR_LOG
         if os.path.exists(log) and os.path.getsize(log) > 0:
             self.error_btn.place(relx=1.0, rely=1.0, x=-10, y=-10, anchor='se')
+
+        try:
+            self._play_notification("./gui/assets/bell.mp3")
+        except Exception:
+            pass
         mb.showinfo("Migracion365", "Transferencia finalizada. Revisa tu OneDrive.")
         self.start_btn.configure(state="normal")
+        self._bring_to_front
         
     """
     Inicia la animación pulsante en la progressbar.
