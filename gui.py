@@ -353,6 +353,7 @@ class MigrationApp(ctk.CTk):
             self._play_notification("./gui/assets/bell.mp3")
         except Exception:
             pass
+        self._bring_to_front
         self.auth_url_lbl.place_forget()
         self._ui_started = False
 
@@ -380,7 +381,9 @@ class MigrationApp(ctk.CTk):
                 self.error_win.lift()
             return
         
-
+    """
+    Llama la ventana al frente
+    """
     def _bring_to_front(self):
         try:
             self.lift()
