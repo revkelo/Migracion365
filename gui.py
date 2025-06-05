@@ -350,7 +350,7 @@ class MigrationApp(ctk.CTk):
         self.status_lbl.configure(text="Cancelado")
         self.size_lbl.configure(text="Tamaño: —")
         try:
-            self._play_notification("./gui/assets/bell.mp3")
+            self._play_notification(ruta_absoluta("./gui/assets/bell.mp3"))
         except Exception:
             pass
         self._bring_to_front
@@ -438,7 +438,7 @@ class MigrationApp(ctk.CTk):
             self.after(0, lambda: self.status_lbl.configure(text=text))
 
         try:
-            self._play_notification("./gui/assets/bell.mp3")
+            self._play_notification(ruta_absoluta("./gui/assets/bell.mp3"))
         except Exception:
             pass
 
@@ -452,7 +452,7 @@ class MigrationApp(ctk.CTk):
             )
             # Autenticación completada → traemos la ventana al frente
             try:
-                self._play_notification("./gui/assets/bell.mp3")
+                self._play_notification(ruta_absoluta("./gui/assets/bell.mp3"))
             except Exception:
                 pass
 
@@ -468,7 +468,7 @@ class MigrationApp(ctk.CTk):
         except OneDriveTokenExpired as e:
             self._bring_to_front
             try:
-                self._play_notification("./gui/assets/bell.mp3")
+                self._play_notification(ruta_absoluta("./gui/assets/bell.mp3"))
             except Exception:
                 pass
             self.after(0, lambda: mb.showerror(
@@ -479,7 +479,7 @@ class MigrationApp(ctk.CTk):
             return
         except ConnectionLost as e:
             try:
-                self._play_notification("./gui/assets/bell.mp3")
+                self._play_notification(ruta_absoluta("./gui/assets/bell.mp3"))
             except Exception:
                 pass
             self.after(0, lambda: mb.showerror(
@@ -490,7 +490,7 @@ class MigrationApp(ctk.CTk):
             return
         except MigrationCancelled:
             try:
-                self._play_notification("./gui/assets/bell.mp3")
+                self._play_notification(ruta_absoluta("./gui/assets/bell.mp3"))
             except Exception:
                 pass
             mb.showwarning("Migracion365", "Migración cancelada")
@@ -542,7 +542,7 @@ class MigrationApp(ctk.CTk):
             self.error_btn.place(relx=1.0, rely=1.0, x=-10, y=-10, anchor='se')
 
         try:
-            self._play_notification("./gui/assets/bell.mp3")
+            self._play_notification(ruta_absoluta("./gui/assets/bell.mp3"))
         except Exception:
             pass
         mb.showinfo("Migracion365", "Transferencia finalizada. Revisa tu OneDrive.")

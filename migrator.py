@@ -155,6 +155,7 @@ class DirectMigrator:
         self.logger.info("Obteniendo archivos exportables de 'Mi unidad'...")
         self.subida_estado("Obteniendo archivos de 'Mi unidad'...")
         folders, files, _ = self.google.listar_archivos_y_carpetas()
+        #Diego esto filtra por los tipos si vamos hacer que todos esten quitar esta monda de google formts
         mi_entries = [
             f for f in files.values()
             if f['mimeType'] in GOOGLE_EXPORT_FORMATS
