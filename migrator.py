@@ -156,10 +156,14 @@ class DirectMigrator:
         self.subida_estado("Obteniendo archivos de 'Mi unidad'...")
         folders, files, _ = self.google.listar_archivos_y_carpetas()
         #Diego esto filtra por los tipos si vamos hacer que todos esten quitar esta monda de google formts
+        """
         mi_entries = [
             f for f in files.values()
             if f['mimeType'] in GOOGLE_EXPORT_FORMATS
         ]
+        """
+        mi_entries = list(files.values())
+
         mi_total = len(mi_entries)
 
         self.logger.info("Contando archivos exportables en Unidades Compartidas...")
@@ -374,11 +378,17 @@ class DirectMigrator:
                 a['id']: a for a in archivos
                 if a['mimeType'] == 'application/vnd.google-apps.folder'
             }
+            """
             archivos_dict = {
                 a['id']: a for a in archivos
                 if a['mimeType'] in GOOGLE_EXPORT_FORMATS
             }
-
+            """
+            archivos_dict = {
+            a['id']: a for a in archivos
+            if a['mimeType'] != 'application/vnd.google-apps.folder'
+            }
+            
             for archivo in archivos_dict.values():
                 if self.cancel_event and self.cancel_event.is_set():
                     self.logger.info(
