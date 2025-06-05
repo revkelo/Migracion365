@@ -12,6 +12,8 @@
 #   - Genera roles.txt y acceso.txt para cada Unidad Compartida.
 # ---------------------------------------------------------------
 
+import io
+import json
 import time
 import logging
 from typing import Callable, Optional
@@ -153,6 +155,7 @@ class DirectMigrator:
         self.logger.info("Obteniendo archivos exportables de 'Mi unidad'...")
         self.subida_estado("Obteniendo archivos de 'Mi unidad'...")
         folders, files, _ = self.google.listar_archivos_y_carpetas()
+        #Diego esto filtra por los tipos si vamos hacer que todos esten quitar esta monda de google formts
         mi_entries = [
             f for f in files.values()
             if f['mimeType'] in GOOGLE_EXPORT_FORMATS
@@ -304,11 +307,11 @@ class DirectMigrator:
         progress_callback (callable | None): Callback de progreso global.
     """
     def _migrar_unidades_compartidas(
-        self,
-        processed: int,
-        total_tasks: int,
-        progress_callback: Optional[Callable[[int, int, str], None]]
-    ):
+            self,
+            processed: int,
+            total_tasks: int,
+            progress_callback: Optional[Callable[[int, int, str], None]]
+        ):
 
         usuario_actual = self.google.usuario
         unidades = self.google.listar_unidades_compartidas()
@@ -332,6 +335,39 @@ class DirectMigrator:
             nombre_unidad = limpiar_archivos(unidad['name'])
             ruta_onedrive = f"Unidades Compartidas/{nombre_unidad}"
             self.one.crear_carpeta(ruta_onedrive)
+
+            # ─── Generar y subir roles.txt y acceso.txt ───
+            lineas_roles = []
+            for p in permisos:
+                rol_esp = self.google.rol_espanol(p['role'])
+                quien = p.get('emailAddress') or p.get('domain') or p['type']
+                lineas_roles.append(f"{quien} → {rol_esp}")
+            contenidos_roles = "\n".join(lineas_roles)
+
+            identificadores = [
+                p.get('emailAddress') or p.get('domain') or p['type']
+                for p in permisos
+            ]
+            contenidos_acceso = ",".join(identificadores)
+
+
+            buffer_roles = io.BytesIO(contenidos_roles.encode('utf-8'))
+            buffer_acceso = io.BytesIO(contenidos_acceso.encode('utf-8'))
+
+            ruta_roles = f"{ruta_onedrive}/roles.txt".lstrip('/')
+            self.one.subir(
+                file_data=buffer_roles,
+                remote_path=ruta_roles,
+                size=len(buffer_roles.getvalue())
+            )
+
+            ruta_acceso = f"{ruta_onedrive}/acceso.txt".lstrip('/')
+            self.one.subir(
+                file_data=buffer_acceso,
+                remote_path=ruta_acceso,
+                size=len(buffer_acceso.getvalue())
+            )
+            # ───────────────────────────────────────────────
 
             archivos = self.google.listar_contenido_drive(unidad['id'])
             folders_dict = {
@@ -387,17 +423,14 @@ class DirectMigrator:
                             f"Compartido - Subida '{file_name}' en '{ruta_completa}'"
                         )
 
-
                         self.progress.setdefault('migrated_files', set()).add(file_id)
                         guardar_progreso(PROGRESS_FILE, self.progress)
 
                 except Exception as e:
                     mensaje = str(e)
-
                     self.logger.error(
                         f"Error al migrar archivo '{file_name}' en '{ruta_completa}': {mensaje}"
                     )
-
 
                     drive_path = f"{ruta_completa}/{file_name}"
                     self._log_error(drive_path, mensaje)
@@ -409,6 +442,7 @@ class DirectMigrator:
                 processed += 1
                 if progress_callback:
                     progress_callback(processed, total_tasks, file_name)
+
 
     """
     Añade una entrada en el log de errores (migration_errors.txt).
