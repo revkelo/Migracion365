@@ -78,7 +78,7 @@ class MigrationApp(ctk.CTk):
         self._last_speed_mbps = 0.0
         self._start_time = None
         self._tiempo_lbl = None
-        self.only_workspace = tk.BooleanVar(value=False)
+        self.only_workspace = tk.BooleanVar(value=True)
 
 
         ctk.set_appearance_mode("light")
@@ -99,13 +99,13 @@ class MigrationApp(ctk.CTk):
         menubar = tk.Menu(self)
         archivos_menu = tk.Menu(menubar, tearoff=0)
         archivos_menu.add_radiobutton(
-            label="Todos los archivos",
+            label="Sólo archivos Workspace",
             variable=self.only_workspace,
             value=True,
             command=self._on_toggle_workspace
         )
         archivos_menu.add_radiobutton(
-            label="Sólo archivos Workspace",
+            label="Todos los archivos",
             variable=self.only_workspace,
             value=False,
             command=self._on_toggle_workspace
@@ -142,13 +142,13 @@ class MigrationApp(ctk.CTk):
                 self._play_notification(ruta_absoluta("./gui/assets/bell.mp3"))
             except Exception:
                 pass
-            mb.showinfo("Migracion365","Filtrando: todos los archivos")
+            mb.showinfo("Migracion365","Filtrando: sólo archivos Workspace")
         else:
             try:
                 self._play_notification(ruta_absoluta("./gui/assets/bell.mp3"))
             except Exception:
                 pass
-            mb.showinfo("Migracion365", "Filtrando: sólo archivos Workspace")
+            mb.showinfo("Migracion365", "Filtrando: todos los archivos\nPuede tardar más tiempo y auntenticar muchas veces")
 
 
     def _play_notification(self, ruta_mp3: str):
