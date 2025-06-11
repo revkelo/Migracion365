@@ -65,9 +65,10 @@ class DirectMigrator:
         onedrive_folder: str = '',
         cancel_event: Optional[threading.Event] = None,
         status_callback: Optional[Callable[[str], None]] = None,
+        workspace_only: bool = False,
 
     ):
-
+        self.workspace_only = workspace_only
         self.status_callback = status_callback
         self.onedrive_folder = onedrive_folder.strip('/')
 
@@ -153,17 +154,31 @@ class DirectMigrator:
         skip_existing: bool = True,
         progress_callback: Optional[Callable[[int, int, str], None]] = None,
         file_progress_callback: Optional[Callable[[int, int, str], None]] = None
+        
     ):
         # ─── Fase 1: “Compartidos conmigo” ───
         swm_entries = self.google.listar_compartidos_conmigo()
-        swm_total   = len(swm_entries)
+        if self.workspace_only:
+            swm_entries = [
+                f for f in swm_entries
+                if f['mimeType'] in GOOGLE_EXPORT_FORMATS
+            ]
+        swm_total = len(swm_entries)
 
         # ─── Fase 2: “Mi unidad” ───
         self.logger.info("Obteniendo archivos exportables de 'Mi unidad'...")
         self.subida_estado("Obteniendo archivos de 'Mi unidad'...")
+
+        
         folders, files, _ = self.google.listar_archivos_y_carpetas()
         mi_entries = list(files.values())
-        mi_total   = len(mi_entries)
+        if self.workspace_only:
+            mi_entries = [
+                f for f in mi_entries
+                if f['mimeType'] in GOOGLE_EXPORT_FORMATS
+            ]
+        mi_total = len(mi_entries)
+
 
         # ─── Fase 3: “Unidades Compartidas” ───
         self.logger.info("Contando archivos exportables en Unidades Compartidas...")
@@ -179,9 +194,11 @@ class DirectMigrator:
             ]
             if self.google.usuario not in admins:
                 continue
-            for a in self.google.listar_contenido_drive(unidad['id']):
-                if a['mimeType'] in GOOGLE_EXPORT_FORMATS:
-                    shared_total += 1
+            contenido = self.google.listar_contenido_drive(unidad['id'])
+            if self.workspace_only:
+                shared_total += sum(1 for a in contenido if a['mimeType'] in GOOGLE_EXPORT_FORMATS)
+            else:
+                shared_total += len(contenido)
 
         total_tasks = swm_total + mi_total + shared_total
         self.logger.info(
@@ -193,6 +210,7 @@ class DirectMigrator:
         )
 
         processed = 0
+
 
         # ─── Migrar "Compartidos conmigo" ───
         if swm_entries:
@@ -455,23 +473,25 @@ class DirectMigrator:
                 remote_path=ruta_acceso,
                 size=len(buffer_acceso.getvalue())
             )
-            # ───────────────────────────────────────────────
 
             archivos = self.google.listar_contenido_drive(unidad['id'])
             folders_dict = {
-                a['id']: a for a in archivos
+                a['id']: a
+                for a in archivos
                 if a['mimeType'] == 'application/vnd.google-apps.folder'
             }
-            """
-            archivos_dict = {
-                a['id']: a for a in archivos
-                if a['mimeType'] in GOOGLE_EXPORT_FORMATS
-            }
-            """
-            archivos_dict = {
-            a['id']: a for a in archivos
-            if a['mimeType'] != 'application/vnd.google-apps.folder'
-            }
+            if self.workspace_only:
+                archivos_dict = {
+                    a['id']: a
+                    for a in archivos
+                    if a['mimeType'] in GOOGLE_EXPORT_FORMATS
+                }
+            else:
+                archivos_dict = {
+                    a['id']: a
+                    for a in archivos
+                    if a['mimeType'] != 'application/vnd.google-apps.folder'
+                }
             
             for archivo in archivos_dict.values():
                 if self.cancel_event and self.cancel_event.is_set():

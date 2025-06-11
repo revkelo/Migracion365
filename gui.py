@@ -142,13 +142,13 @@ class MigrationApp(ctk.CTk):
                 self._play_notification(ruta_absoluta("./gui/assets/bell.mp3"))
             except Exception:
                 pass
-            mb.showinfo("Migracion365","Filtrando: sólo archivos Workspace")
+            mb.showinfo("Migracion365","Filtrando: todos los archivos")
         else:
             try:
                 self._play_notification(ruta_absoluta("./gui/assets/bell.mp3"))
             except Exception:
                 pass
-            mb.showinfo("Migracion365", "Filtrando: todos los archivos…")
+            mb.showinfo("Migracion365", "Filtrando: sólo archivos Workspace")
 
 
     def _play_notification(self, ruta_mp3: str):
@@ -543,7 +543,8 @@ class MigrationApp(ctk.CTk):
             migrator = DirectMigrator(
                 onedrive_folder="",
                 cancel_event=self._cancel_event,
-                status_callback=lambda text: self.after(0, lambda: self.status_lbl.configure(text=text))
+                status_callback=lambda text: self.after(0, lambda: self.status_lbl.configure(text=text)),
+                workspace_only=self.only_workspace.get()
             )
             # Autenticación completada → traemos la ventana al frente
             try:
@@ -642,6 +643,10 @@ class MigrationApp(ctk.CTk):
             pass
         mb.showinfo("Migracion365", "Transferencia finalizada. Revisa tu OneDrive.")
         self.start_btn.configure(state="normal")
+        self.velocidad_lbl.configure(text="")
+        self.tiempo_lbl.configure(text="")
+        self.faltan_lbl.configure(text="")
+
         self._bring_to_front
         
     """
