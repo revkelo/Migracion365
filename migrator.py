@@ -228,11 +228,10 @@ class DirectMigrator:
             try:
 
                 t0 = time.perf_counter()
-                
+                self.subida_estado(f"Descargando '{name}'")
                 data, ext_name = self.google.descargar(info)
                 t1 = time.perf_counter()
                 self.logger.info(f"Descarga {name}: {t1-t0:.2f}s")
-                self.subida_estado(f"Descargando '{name}' ({(t1 - t0):.2f}s)")
 
 
                 if data is None:
@@ -260,8 +259,7 @@ class DirectMigrator:
                 data.seek(0, 2)
                 total_bytes = data.tell()
                 data.seek(0)
-                size_mb = total_bytes / (1024 * 1024)
-                self.status_callback(f"Tamaño: {size_mb:.2f} MB")
+
 
                 remote_path = f"{self.onedrive_folder}/{folder_path}/{ext_name}".lstrip('/')
                 t2 = time.perf_counter()
