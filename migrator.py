@@ -232,6 +232,8 @@ class DirectMigrator:
                 data, ext_name = self.google.descargar(info)
                 t1 = time.perf_counter()
                 self.logger.info(f"Descarga {name}: {t1-t0:.2f}s")
+                self.subida_estado(f"Descargando '{name}' ({(t1 - t0):.2f}s)")
+
 
                 if data is None:
                     raw_msg = getattr(self.google, 'last_error', None)

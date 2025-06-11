@@ -75,6 +75,9 @@ class MigrationApp(ctk.CTk):
         self._last_size_mb = 0.0
         self._ui_started = False
         self._last_speed_mbps = 0.0
+        self._start_time = None
+        self._tiempo_lbl = None
+
 
         ctk.set_appearance_mode("light")
         ico_path = ruta_absoluta("gui/assets/icono.ico")
@@ -183,6 +186,10 @@ class MigrationApp(ctk.CTk):
 
         self.size_lbl = ctk.CTkLabel(self, text="Tamaño: —", text_color=self.COLORS['text'])
         self.size_lbl.pack(pady=(0, 5))
+        
+        self.tiempo_lbl = ctk.CTkLabel(self, text="", text_color=self.COLORS['text'])
+        self.tiempo_lbl.place(relx=0.22, rely=0.86, anchor="ne")
+
         
         self.velocidad_lbl = ctk.CTkLabel(self, text="", text_color=self.COLORS['text'])
         self.velocidad_lbl.place(relx=0.96, rely=0.86, anchor="ne")
@@ -364,6 +371,7 @@ class MigrationApp(ctk.CTk):
         self.auth_url_lbl.place_forget()
         self._ui_started = False
         self.velocidad_lbl.configure(text="")
+        self.tiempo_lbl.configure(text="")
 
 
     """
@@ -420,11 +428,35 @@ class MigrationApp(ctk.CTk):
         def en_general(proc, total, name):
             if self._cancel_event.is_set():
                 return
+
+            # Mostrar botón Cancelar al iniciar
             if not self._ui_started:
                 self.after(0, self.cancel_btn.grid)
                 self._ui_started = True
+
+            # Calcular progreso general
             pct = proc / total
             self.after(0, lambda: self._subida_global(pct, name))
+
+            # Calcular tiempo restante
+            now = time.perf_counter()
+            if self._start_time is None:
+                self._start_time = now
+
+            elapsed = now - self._start_time
+            promedio = elapsed / proc if proc > 0 else 0
+            restantes = total - proc
+            tiempo_restante = int(promedio * restantes)
+            minutos, segundos = divmod(tiempo_restante, 60)
+
+            dias, rem = divmod(tiempo_restante, 86400)       # 86400 segundos por día
+            horas, rem = divmod(rem, 3600)                   # 3600 segundos por hora
+            minutos, _ = divmod(rem, 60)                     # ignoramos segundos
+
+            texto_tiempo = f"Tiempo restante: {dias}d {horas}h {minutos}m"
+
+            self.after(0, lambda: self.tiempo_lbl.configure(text=texto_tiempo))
+
 
 
         """
