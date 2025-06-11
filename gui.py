@@ -10,9 +10,11 @@
 
 import os
 import threading
+import time
 import customtkinter as ctk
 import tkinter.messagebox as mb
 from PIL import Image
+import requests
 from google_service import GoogleService
 from migrator import DirectMigrator, MigrationCancelled,ConnectionLost
 from onedrive_service import OneDriveTokenExpired
@@ -72,6 +74,7 @@ class MigrationApp(ctk.CTk):
         self._auth_url = None
         self._last_size_mb = 0.0
         self._ui_started = False
+        self._last_speed_mbps = 0.0
 
         ctk.set_appearance_mode("light")
         ico_path = ruta_absoluta("gui/assets/icono.ico")
@@ -163,6 +166,7 @@ class MigrationApp(ctk.CTk):
             return ctk.CTkImage(blank, size=self.ICON_SIZE)
 
 
+
     """
     Construye y posiciona todos los widgets de la interfaz.
 
@@ -179,6 +183,9 @@ class MigrationApp(ctk.CTk):
 
         self.size_lbl = ctk.CTkLabel(self, text="Tamaño: —", text_color=self.COLORS['text'])
         self.size_lbl.pack(pady=(0, 5))
+        
+        self.velocidad_lbl = ctk.CTkLabel(self, text="", text_color=self.COLORS['text'])
+        self.velocidad_lbl.place(relx=0.96, rely=0.86, anchor="ne")
 
 
         frame = ctk.CTkFrame(self, fg_color=self.COLORS['background'])
@@ -356,6 +363,7 @@ class MigrationApp(ctk.CTk):
         self._bring_to_front
         self.auth_url_lbl.place_forget()
         self._ui_started = False
+        self.velocidad_lbl.configure(text="")
 
 
     """
@@ -436,6 +444,8 @@ class MigrationApp(ctk.CTk):
             self.after(0, lambda: self.size_lbl.configure(text=f"Tamaño: {size_mb:.2f} MB"))
             text = f"Subiendo '{name}': {pctf*100:.0f}%"
             self.after(0, lambda: self.status_lbl.configure(text=text))
+            velocidad = medir_velocidad_ping()
+            self.after(0, lambda: self.velocidad_lbl.configure(text=f"Red: {velocidad:.2f} MB/s"))
 
         try:
             self._play_notification(ruta_absoluta("./gui/assets/bell.mp3"))
@@ -591,3 +601,19 @@ class MigrationApp(ctk.CTk):
     """
     def run(self):
         self.mainloop()
+
+def medir_velocidad_ping(url="https://www.google.com", tamaño_bytes=1024*1024):
+    try:
+        inicio = time.perf_counter()
+        resp = requests.get(url, stream=True, timeout=5)
+        total = 0
+        for chunk in resp.iter_content(chunk_size=8192):
+            total += len(chunk)
+            if total >= tamaño_bytes:
+                break
+        fin = time.perf_counter()
+        duracion = fin - inicio
+        velocidad_mbps = (total / (1024 * 1024)) / duracion if duracion > 0 else 0
+        return round(velocidad_mbps, 2)
+    except Exception:
+        return 0.0
