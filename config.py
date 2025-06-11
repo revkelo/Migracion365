@@ -37,7 +37,8 @@ Define tamaños para la transferencia de archivos:
 """
 CHUNK_SIZE = 100 * 1024 * 1024  
 LARGE_FILE_THRESHOLD = 5 * 1024 * 1024 
-
+MAX_FILE_SIZE_BYTES = 10 * 1024**3  # 10 GB
+ 
 """
 Archivos de estado:
 - PROGRESS_FILE: archivo JSON que guarda el estado de la migración.
