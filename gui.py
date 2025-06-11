@@ -193,6 +193,9 @@ class MigrationApp(ctk.CTk):
         
         self.velocidad_lbl = ctk.CTkLabel(self, text="", text_color=self.COLORS['text'])
         self.velocidad_lbl.place(relx=0.96, rely=0.86, anchor="ne")
+        
+        self.faltan_lbl = ctk.CTkLabel(self, text="", text_color=self.COLORS['text'])
+        self.faltan_lbl.place(relx=0.62, rely=0.86, anchor="ne")
 
 
         frame = ctk.CTkFrame(self, fg_color=self.COLORS['background'])
@@ -372,6 +375,7 @@ class MigrationApp(ctk.CTk):
         self._ui_started = False
         self.velocidad_lbl.configure(text="")
         self.tiempo_lbl.configure(text="")
+        self.faltan_lbl.configure(text="")
 
 
     """
@@ -437,6 +441,10 @@ class MigrationApp(ctk.CTk):
             # Calcular progreso general
             pct = proc / total
             self.after(0, lambda: self._subida_global(pct, name))
+            
+            
+            restantes = total - proc
+            self.after(0, lambda: self.faltan_lbl.configure(text=f"Faltan: {restantes} de {total} archivos"))
 
             # Calcular tiempo restante
             now = time.perf_counter()

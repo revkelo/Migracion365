@@ -260,6 +260,8 @@ class DirectMigrator:
                 data.seek(0, 2)
                 total_bytes = data.tell()
                 data.seek(0)
+                size_mb = total_bytes / (1024 * 1024)
+                self.status_callback(f"Tamaño: {size_mb:.2f} MB")
 
                 remote_path = f"{self.onedrive_folder}/{folder_path}/{ext_name}".lstrip('/')
                 t2 = time.perf_counter()
