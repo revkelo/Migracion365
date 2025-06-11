@@ -13,7 +13,7 @@
 # ---------------------------------------------------------------
 
 import io
-import json
+from config import MAX_FILE_SIZE_BYTES
 import time
 import logging
 from typing import Callable, Optional
@@ -225,6 +225,16 @@ class DirectMigrator:
             folder_path = '/'.join(path_parts)
             drive_path = f"{folder_path}/{name}" if folder_path else name
 
+
+            size_bytes = int(info.get('size', 0) or 0)
+            if size_bytes > MAX_FILE_SIZE_BYTES:
+                mensaje = f"Tamaño excede 10 GB ({size_bytes/1024**3:.2f} GB). Se omitirá."
+                self._log_error(drive_path, mensaje)
+                processed += 1
+                if progress_callback:
+                    progress_callback(processed, total_tasks, name)
+                continue
+            
             try:
 
                 t0 = time.perf_counter()
@@ -397,6 +407,17 @@ class DirectMigrator:
                         f"Migración cancelada por usuario (en unidad compartida '{nombre_unidad}')"
                     )
                     return
+                
+                
+                size_bytes = int(archivo.get('size', 0) or 0)
+                if size_bytes > MAX_FILE_SIZE_BYTES:
+                    mensaje = f"Tamaño excede 10 GB ({size_bytes/1024**3:.2f} GB). Se omitirá."
+                    drive_path = f"{ruta_completa}/{file_name}"
+                    self._log_error(drive_path, mensaje)
+                    processed += 1
+                    if progress_callback:
+                        progress_callback(processed, total_tasks, file_name)
+                    continue
 
                 file_id = archivo['id']
                 file_name = archivo['name']
