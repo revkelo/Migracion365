@@ -13,7 +13,7 @@
 # ---------------------------------------------------------------
 
 import io
-import json
+from config import MAX_FILE_SIZE_BYTES
 import time
 import logging
 from typing import Callable, Optional
@@ -22,6 +22,8 @@ from config import PROGRESS_FILE, LOG_FILE, GOOGLE_EXPORT_FORMATS
 from utils import cargar_proceso, guardar_progreso, limpiar_archivos
 from google_service import GoogleService
 from onedrive_service import OneDriveService
+
+
 
 
 class MigrationCancelled(Exception):
@@ -63,9 +65,10 @@ class DirectMigrator:
         onedrive_folder: str = '',
         cancel_event: Optional[threading.Event] = None,
         status_callback: Optional[Callable[[str], None]] = None,
+        workspace_only: bool = False,
 
     ):
-
+        self.workspace_only = workspace_only
         self.status_callback = status_callback
         self.onedrive_folder = onedrive_folder.strip('/')
 
@@ -151,26 +154,39 @@ class DirectMigrator:
         skip_existing: bool = True,
         progress_callback: Optional[Callable[[int, int, str], None]] = None,
         file_progress_callback: Optional[Callable[[int, int, str], None]] = None
+        
     ):
+        # ─── Fase 1: “Compartidos conmigo” ───
+        swm_entries = self.google.listar_compartidos_conmigo()
+        if self.workspace_only:
+            swm_entries = [
+                f for f in swm_entries
+                if f['mimeType'] in GOOGLE_EXPORT_FORMATS
+            ]
+        swm_total = len(swm_entries)
+
+        # ─── Fase 2: “Mi unidad” ───
         self.logger.info("Obteniendo archivos exportables de 'Mi unidad'...")
         self.subida_estado("Obteniendo archivos de 'Mi unidad'...")
+
+        
         folders, files, _ = self.google.listar_archivos_y_carpetas()
-        #Diego esto filtra por los tipos si vamos hacer que todos esten quitar esta monda de google formts
-        mi_entries = [
-            f for f in files.values()
-            if f['mimeType'] in GOOGLE_EXPORT_FORMATS
-        ]
+        mi_entries = list(files.values())
+        if self.workspace_only:
+            mi_entries = [
+                f for f in mi_entries
+                if f['mimeType'] in GOOGLE_EXPORT_FORMATS
+            ]
         mi_total = len(mi_entries)
 
+
+        # ─── Fase 3: “Unidades Compartidas” ───
         self.logger.info("Contando archivos exportables en Unidades Compartidas...")
         self.subida_estado("Contando archivos en Unidades Compartidas...")
-
         shared_total = 0
-
         unidades = self.google.listar_unidades_compartidas()
         for unidad in unidades:
             permisos = self.google.listar_permisos(unidad['id'])
-
             admins = [
                 p.get('emailAddress') or p.get('domain') or p['type']
                 for p in permisos
@@ -178,98 +194,187 @@ class DirectMigrator:
             ]
             if self.google.usuario not in admins:
                 continue
+            contenido = self.google.listar_contenido_drive(unidad['id'])
+            if self.workspace_only:
+                shared_total += sum(1 for a in contenido if a['mimeType'] in GOOGLE_EXPORT_FORMATS)
+            else:
+                shared_total += len(contenido)
 
-
-            archivos = self.google.listar_contenido_drive(unidad['id'])
-
-            for a in archivos:
-                if a['mimeType'] in GOOGLE_EXPORT_FORMATS:
-                    shared_total += 1
-
-
-        total_tasks = mi_total + shared_total
-        self.logger.info(f"Total de archivos a migrar: {total_tasks} (Mi unidad: {mi_total}, Unidades Compartidas: {shared_total})")
-        self.subida_estado(f"Total de archivos a migrar: {total_tasks} (Mi unidad: {mi_total}, Unidades Compartidas: {shared_total})")
+        total_tasks = swm_total + mi_total + shared_total
+        self.logger.info(
+            f"Total a migrar: {total_tasks} "
+            f"(Compartidos conmigo: {swm_total}, Mi unidad: {mi_total}, Unidades Compartidas: {shared_total})"
+        )
+        self.subida_estado(
+            f"Total a migrar: {total_tasks} (C:{swm_total}, M:{mi_total}, U:{shared_total})"
+        )
 
         processed = 0
 
+
+        # ─── Migrar "Compartidos conmigo" ───
+        if swm_entries:
+            self.logger.info("Iniciando migración de 'Compartidos conmigo'...")
+            self.subida_estado("Migrando Compartidos conmigo...")
+            for info in swm_entries:
+                if self.cancel_event and self.cancel_event.is_set():
+                    self.logger.info("Migración cancelada por usuario")
+                    return
+
+                fid  = info['id']
+                name = info['name'].replace('\r', '').replace('\n', ' ').strip()
+
+                # Saltar si ya existe
+                if skip_existing and fid in self.progress.get('migrated_files', set()):
+                    processed += 1
+                    if progress_callback:
+                        progress_callback(processed, total_tasks, name)
+                    continue
+
+                # Verificar tamaño
+                size_bytes = int(info.get('size', 0) or 0)
+                if size_bytes > MAX_FILE_SIZE_BYTES:
+                    mensaje = f"Tamaño excede 10 GB ({size_bytes/1024**3:.2f} GB). Se omitirá."
+                    self._log_error(name, mensaje)
+                    processed += 1
+                    if progress_callback:
+                        progress_callback(processed, total_tasks, name)
+                    continue
+
+                try:
+                    # Descargar
+                    t0 = time.perf_counter()
+                    self.subida_estado(f"Descargando '{name}'")
+                    data, ext_name = self.google.descargar(info)
+                    t1 = time.perf_counter()
+                    self.logger.info(f"Descarga {name}: {t1-t0:.2f}s")
+
+                    if data is None:
+                        raw_msg = getattr(self.google, 'last_error', None)
+                        mensaje = self._format_error(raw_msg) if raw_msg else "Descarga fallida (error desconocido)"
+                        self._log_error(name, mensaje)
+                        if mensaje == "No se pudo conectar al servidor de Google APIs.":
+                            raise ConnectionLost(mensaje)
+                        processed += 1
+                        if progress_callback:
+                            progress_callback(processed, total_tasks, name)
+                        continue
+
+                    data.seek(0, 2)
+                    total_bytes = data.tell()
+                    data.seek(0)
+
+                    # Subir a carpeta raíz "Compartidos conmigo"
+                    carpeta = "Compartidos conmigo"
+                    self.one.crear_carpeta(carpeta)
+                    remote_path = f"{carpeta}/{ext_name}"
+                    t2 = time.perf_counter()
+                    self.one.subir(
+                        file_data=data,
+                        remote_path=remote_path,
+                        size=total_bytes,
+                        progress_callback=lambda s, t, n=name:
+                            file_progress_callback(s, t, n)
+                            if file_progress_callback else None
+                    )
+                    t3 = time.perf_counter()
+                    self.logger.info(f"Subida '{name}': {t3-t2:.2f}s")
+
+                    # Guardar progreso
+                    self.progress.setdefault('migrated_files', set()).add(fid)
+                    guardar_progreso(PROGRESS_FILE, self.progress)
+
+                except Exception as e:
+                    raw_msg = str(e)
+                    mensaje = self._format_error(raw_msg)
+                    self._log_error(name, mensaje)
+                    if mensaje in (
+                        "Tiempo de espera agotado al leer los datos.",
+                        "No se pudo conectar al servidor de Google APIs."
+                    ):
+                        raise ConnectionLost(mensaje)
+
+                processed += 1
+                if progress_callback:
+                    progress_callback(processed, total_tasks, name)
+
+        # ─── Migrar "Mi unidad" ───
         self.logger.info("Iniciando migración de 'Mi unidad'...")
-        self.subida_estado("Obteniendo archivos de Google Drive...")
-
+        self.subida_estado("Migrando Mi unidad...")
         for info in mi_entries:
-
             if self.cancel_event and self.cancel_event.is_set():
                 self.logger.info("Migración cancelada por usuario")
                 return
 
-            fid = info['id']
+            fid      = info['id']
             raw_name = info['name']
-            name = raw_name.replace('\r', '').replace('\n', ' ').strip()
+            name     = raw_name.replace('\r', '').replace('\n', ' ').strip()
 
+            # Saltar si ya existe
             if skip_existing and fid in self.progress.get('migrated_files', set()):
                 processed += 1
                 if progress_callback:
                     progress_callback(processed, total_tasks, name)
                 continue
 
-
+            # Calcular ruta en Drive
             parents = info.get('parents') or []
             if parents:
                 path_parts = self.google.obtener_ruta_carpeta(parents[0], folders)
             else:
                 path_parts = []
             folder_path = '/'.join(path_parts)
-            drive_path = f"{folder_path}/{name}" if folder_path else name
+            drive_path  = f"{folder_path}/{name}" if folder_path else name
+
+            # Verificar tamaño
+            size_bytes = int(info.get('size', 0) or 0)
+            if size_bytes > MAX_FILE_SIZE_BYTES:
+                mensaje = f"Tamaño excede 10 GB ({size_bytes/1024**3:.2f} GB). Se omitirá."
+                self._log_error(drive_path, mensaje)
+                processed += 1
+                if progress_callback:
+                    progress_callback(processed, total_tasks, name)
+                continue
 
             try:
-
+                # Descargar
                 t0 = time.perf_counter()
-                
+                self.subida_estado(f"Descargando '{name}'")
                 data, ext_name = self.google.descargar(info)
                 t1 = time.perf_counter()
                 self.logger.info(f"Descarga {name}: {t1-t0:.2f}s")
 
                 if data is None:
                     raw_msg = getattr(self.google, 'last_error', None)
-                    if raw_msg:
-                        mensaje = self._format_error(raw_msg)
-                    else:
-                        mensaje = "Descarga fallida (error desconocido)"
-
+                    mensaje = self._format_error(raw_msg) if raw_msg else "Descarga fallida (error desconocido)"
                     print(f"[ERROR] {drive_path} -> {mensaje}")
                     self._log_error(drive_path, mensaje)
-
                     if mensaje == "No se pudo conectar al servidor de Google APIs.":
                         raise ConnectionLost(mensaje)
-
                     processed += 1
                     if progress_callback:
                         progress_callback(processed, total_tasks, name)
                     continue
 
-
-
-
-
                 data.seek(0, 2)
                 total_bytes = data.tell()
                 data.seek(0)
 
+                # Subir
                 remote_path = f"{self.onedrive_folder}/{folder_path}/{ext_name}".lstrip('/')
                 t2 = time.perf_counter()
                 self.one.subir(
                     file_data=data,
                     remote_path=remote_path,
                     size=total_bytes,
-                    progress_callback=lambda sent, tot, n=name: (
-                        file_progress_callback(sent, tot, n)
+                    progress_callback=lambda s, t, n=name:
+                        file_progress_callback(s, t, n)
                         if file_progress_callback else None
-                    )
                 )
                 t3 = time.perf_counter()
-                self.logger.info(f"Subida '{name}': {t3 - t2:.2f}s")
+                self.logger.info(f"Subida '{name}': {t3-t2:.2f}s")
 
-
+                # Guardar progreso
                 self.progress.setdefault('migrated_files', set()).add(fid)
                 guardar_progreso(PROGRESS_FILE, self.progress)
 
@@ -283,19 +388,20 @@ class DirectMigrator:
                 ):
                     raise ConnectionLost(mensaje)
 
-
             processed += 1
             if progress_callback:
                 progress_callback(processed, total_tasks, name)
 
         self.logger.info("Migración de 'Mi unidad' completada.")
 
+        # ─── Migrar Unidades Compartidas ───
         try:
             self.logger.info("Iniciando migración de Unidades Compartidas...")
             self._migrar_unidades_compartidas(processed, total_tasks, progress_callback)
             self.logger.info("Migración de Unidades Compartidas completada.")
         except Exception as e:
             self.logger.error(f"Error al migrar Unidades Compartidas: {str(e)}")
+
             
         
     """
@@ -367,24 +473,43 @@ class DirectMigrator:
                 remote_path=ruta_acceso,
                 size=len(buffer_acceso.getvalue())
             )
-            # ───────────────────────────────────────────────
 
             archivos = self.google.listar_contenido_drive(unidad['id'])
             folders_dict = {
-                a['id']: a for a in archivos
+                a['id']: a
+                for a in archivos
                 if a['mimeType'] == 'application/vnd.google-apps.folder'
             }
-            archivos_dict = {
-                a['id']: a for a in archivos
-                if a['mimeType'] in GOOGLE_EXPORT_FORMATS
-            }
-
+            if self.workspace_only:
+                archivos_dict = {
+                    a['id']: a
+                    for a in archivos
+                    if a['mimeType'] in GOOGLE_EXPORT_FORMATS
+                }
+            else:
+                archivos_dict = {
+                    a['id']: a
+                    for a in archivos
+                    if a['mimeType'] != 'application/vnd.google-apps.folder'
+                }
+            
             for archivo in archivos_dict.values():
                 if self.cancel_event and self.cancel_event.is_set():
                     self.logger.info(
                         f"Migración cancelada por usuario (en unidad compartida '{nombre_unidad}')"
                     )
                     return
+                
+                
+                size_bytes = int(archivo.get('size', 0) or 0)
+                if size_bytes > MAX_FILE_SIZE_BYTES:
+                    mensaje = f"Tamaño excede 10 GB ({size_bytes/1024**3:.2f} GB). Se omitirá."
+                    drive_path = f"{ruta_completa}/{file_name}"
+                    self._log_error(drive_path, mensaje)
+                    processed += 1
+                    if progress_callback:
+                        progress_callback(processed, total_tasks, file_name)
+                    continue
 
                 file_id = archivo['id']
                 file_name = archivo['name']

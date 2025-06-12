@@ -327,6 +327,27 @@ class GoogleService:
             current = parents[0] if parents else None
         return list(reversed(path))
     
+    
+    
+    def listar_compartidos_conmigo(self):
+        """Devuelve la lista de archivos y carpetas que se han compartido conmigo (no unidades)."""
+        archivos = []
+        page_token = None
+        while True:
+            resp = self.drive.files().list(
+                q="sharedWithMe = true and trashed = false",
+                pageSize=1000,
+                pageToken=page_token,
+                fields="nextPageToken, files(id, name, mimeType, parents, size, modifiedTime)"
+            ).execute()
+            archivos.extend(resp.get("files", []))
+            page_token = resp.get("nextPageToken")
+            if not page_token:
+                break
+        return archivos
+
+    
+    
     """
     Descarga o exporta un archivo de Google Drive según su MIME type.
 

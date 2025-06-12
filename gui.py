@@ -10,9 +10,12 @@
 
 import os
 import threading
+import time
 import customtkinter as ctk
 import tkinter.messagebox as mb
+import tkinter as tk
 from PIL import Image
+import requests
 from google_service import GoogleService
 from migrator import DirectMigrator, MigrationCancelled,ConnectionLost
 from onedrive_service import OneDriveTokenExpired
@@ -72,6 +75,11 @@ class MigrationApp(ctk.CTk):
         self._auth_url = None
         self._last_size_mb = 0.0
         self._ui_started = False
+        self._last_speed_mbps = 0.0
+        self._start_time = None
+        self._tiempo_lbl = None
+        self.only_workspace = tk.BooleanVar(value=True)
+
 
         ctk.set_appearance_mode("light")
         ico_path = ruta_absoluta("gui/assets/icono.ico")
@@ -84,6 +92,27 @@ class MigrationApp(ctk.CTk):
         self.geometry(self.WINDOW_SIZE)
         self.resizable(False, False)
         self.configure(fg_color=self.COLORS['background'])
+        
+        
+        # 3) También en __init__, justo antes de cargar los iconos y widgets,
+        #    crear el menubar con las dos opciones de radio
+        menubar = tk.Menu(self)
+        archivos_menu = tk.Menu(menubar, tearoff=0)
+        archivos_menu.add_radiobutton(
+            label="Sólo archivos Workspace",
+            variable=self.only_workspace,
+            value=True,
+            command=self._on_toggle_workspace
+        )
+        archivos_menu.add_radiobutton(
+            label="Todos los archivos",
+            variable=self.only_workspace,
+            value=False,
+            command=self._on_toggle_workspace
+        )
+        menubar.add_cascade(label="Archivos", menu=archivos_menu)
+        self.config(menu=menubar)
+
 
         self.google_icon = self.cargar_icono(ruta_absoluta("gui/assets/googledrive.png"))
         self.onedrive_icon = self.cargar_icono(ruta_absoluta("gui/assets/onedrive.png"))
@@ -98,6 +127,28 @@ class MigrationApp(ctk.CTk):
 
 
 
+
+    def _on_toggle_workspace(self):
+        # Si ya está migrando, bloqueamos el cambio
+        if self._is_running:
+            mb.showwarning("Migracion365", "No puedes cambiar el filtro mientras la migración está en curso.")
+            # revertir la selección al valor previo
+            self.only_workspace.set(not self.only_workspace.get())
+            return
+
+        # Si no, procede con la lógica actual
+        if self.only_workspace.get():
+            try:
+                self._play_notification(ruta_absoluta("./gui/assets/bell.mp3"))
+            except Exception:
+                pass
+            mb.showinfo("Migracion365","Filtrando: sólo archivos Workspace")
+        else:
+            try:
+                self._play_notification(ruta_absoluta("./gui/assets/bell.mp3"))
+            except Exception:
+                pass
+            mb.showinfo("Migracion365", "Filtrando: todos los archivos\nPuede tardar más tiempo y auntenticar muchas veces")
 
 
     def _play_notification(self, ruta_mp3: str):
@@ -163,6 +214,7 @@ class MigrationApp(ctk.CTk):
             return ctk.CTkImage(blank, size=self.ICON_SIZE)
 
 
+
     """
     Construye y posiciona todos los widgets de la interfaz.
 
@@ -179,6 +231,16 @@ class MigrationApp(ctk.CTk):
 
         self.size_lbl = ctk.CTkLabel(self, text="Tamaño: —", text_color=self.COLORS['text'])
         self.size_lbl.pack(pady=(0, 5))
+        
+        self.tiempo_lbl = ctk.CTkLabel(self, text="", text_color=self.COLORS['text'])
+        self.tiempo_lbl.place(relx=0.22, rely=0.86, anchor="ne")
+
+        
+        self.velocidad_lbl = ctk.CTkLabel(self, text="", text_color=self.COLORS['text'])
+        self.velocidad_lbl.place(relx=0.96, rely=0.86, anchor="ne")
+        
+        self.faltan_lbl = ctk.CTkLabel(self, text="", text_color=self.COLORS['text'])
+        self.faltan_lbl.place(relx=0.62, rely=0.86, anchor="ne")
 
 
         frame = ctk.CTkFrame(self, fg_color=self.COLORS['background'])
@@ -356,6 +418,9 @@ class MigrationApp(ctk.CTk):
         self._bring_to_front
         self.auth_url_lbl.place_forget()
         self._ui_started = False
+        self.velocidad_lbl.configure(text="")
+        self.tiempo_lbl.configure(text="")
+        self.faltan_lbl.configure(text="")
 
 
     """
@@ -412,11 +477,39 @@ class MigrationApp(ctk.CTk):
         def en_general(proc, total, name):
             if self._cancel_event.is_set():
                 return
+
+            # Mostrar botón Cancelar al iniciar
             if not self._ui_started:
                 self.after(0, self.cancel_btn.grid)
                 self._ui_started = True
+
+            # Calcular progreso general
             pct = proc / total
             self.after(0, lambda: self._subida_global(pct, name))
+            
+            
+            restantes = total - proc
+            self.after(0, lambda: self.faltan_lbl.configure(text=f"Faltan: {restantes} de {total} archivos"))
+
+            # Calcular tiempo restante
+            now = time.perf_counter()
+            if self._start_time is None:
+                self._start_time = now
+
+            elapsed = now - self._start_time
+            promedio = elapsed / proc if proc > 0 else 0
+            restantes = total - proc
+            tiempo_restante = int(promedio * restantes)
+            minutos, segundos = divmod(tiempo_restante, 60)
+
+            dias, rem = divmod(tiempo_restante, 86400)       # 86400 segundos por día
+            horas, rem = divmod(rem, 3600)                   # 3600 segundos por hora
+            minutos, _ = divmod(rem, 60)                     # ignoramos segundos
+
+            texto_tiempo = f"Tiempo restante: {dias}d {horas}h {minutos}m"
+
+            self.after(0, lambda: self.tiempo_lbl.configure(text=texto_tiempo))
+
 
 
         """
@@ -436,6 +529,8 @@ class MigrationApp(ctk.CTk):
             self.after(0, lambda: self.size_lbl.configure(text=f"Tamaño: {size_mb:.2f} MB"))
             text = f"Subiendo '{name}': {pctf*100:.0f}%"
             self.after(0, lambda: self.status_lbl.configure(text=text))
+            velocidad = medir_velocidad_ping()
+            self.after(0, lambda: self.velocidad_lbl.configure(text=f"Red: {velocidad:.2f} MB/s"))
 
         try:
             self._play_notification(ruta_absoluta("./gui/assets/bell.mp3"))
@@ -448,7 +543,8 @@ class MigrationApp(ctk.CTk):
             migrator = DirectMigrator(
                 onedrive_folder="",
                 cancel_event=self._cancel_event,
-                status_callback=lambda text: self.after(0, lambda: self.status_lbl.configure(text=text))
+                status_callback=lambda text: self.after(0, lambda: self.status_lbl.configure(text=text)),
+                workspace_only=self.only_workspace.get()
             )
             # Autenticación completada → traemos la ventana al frente
             try:
@@ -547,6 +643,10 @@ class MigrationApp(ctk.CTk):
             pass
         mb.showinfo("Migracion365", "Transferencia finalizada. Revisa tu OneDrive.")
         self.start_btn.configure(state="normal")
+        self.velocidad_lbl.configure(text="")
+        self.tiempo_lbl.configure(text="")
+        self.faltan_lbl.configure(text="")
+
         self._bring_to_front
         
     """
@@ -591,3 +691,19 @@ class MigrationApp(ctk.CTk):
     """
     def run(self):
         self.mainloop()
+
+def medir_velocidad_ping(url="https://www.google.com", tamaño_bytes=1024*1024):
+    try:
+        inicio = time.perf_counter()
+        resp = requests.get(url, stream=True, timeout=5)
+        total = 0
+        for chunk in resp.iter_content(chunk_size=8192):
+            total += len(chunk)
+            if total >= tamaño_bytes:
+                break
+        fin = time.perf_counter()
+        duracion = fin - inicio
+        velocidad_mbps = (total / (1024 * 1024)) / duracion if duracion > 0 else 0
+        return round(velocidad_mbps, 2)
+    except Exception:
+        return 0.0
