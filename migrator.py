@@ -224,8 +224,13 @@ class DirectMigrator:
                 fid  = info['id']
                 name = info['name'].replace('\r', '').replace('\n', ' ').strip()
                 owners = info.get("owners", [])
-                owner_email = owners[0].get("emailAddress", "desconocido") if owners else "desconocido"
-                print(f"📁 Archivo: {name} → Propietario: {owner_email}")
+                if owners:
+                    email = owners[0].get("emailAddress", "sin correo")
+                    name  = owners[0].get("displayName", "sin nombre")
+                else:
+                    email = "desconocido"
+                    name  = "desconocido"
+                print(f"📁 {info['name']} → Propietario: {name} <{email}>")
 
 
                 # Saltar si ya existe
@@ -314,8 +319,14 @@ class DirectMigrator:
             raw_name = info['name']
             name     = raw_name.replace('\r', '').replace('\n', ' ').strip()
             owners = info.get("owners", [])
-            owner_email = owners[0].get("emailAddress", "desconocido") if owners else "desconocido"
-            print(f"📁 Archivo: {name} → Propietario: {owner_email}")
+            if owners:
+                email = owners[0].get("emailAddress", "sin correo")
+                name  = owners[0].get("displayName", "sin nombre")
+            else:
+                email = "desconocido"
+                name  = "desconocido"
+            print(f"📁 {info['name']} → Propietario: {name} <{email}>")
+
 
 
             # Saltar si ya existe

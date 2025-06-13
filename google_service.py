@@ -293,7 +293,7 @@ class GoogleService:
         while True:
             res = self.drive.files().list(
                 q="trashed = false",
-                fields="nextPageToken, files(id, name, mimeType, parents, size, modifiedTime)",
+                fields="nextPageToken, files(id, name, mimeType, parents, size, modifiedTime, owners(emailAddress,displayName))",
                 pageSize=1000,
                 pageToken=page_token
             ).execute()
@@ -338,7 +338,7 @@ class GoogleService:
                 q="sharedWithMe = true and trashed = false",
                 pageSize=1000,
                 pageToken=page_token,
-                fields="nextPageToken, files(id, name, mimeType, parents, size, modifiedTime)"
+                fields="nextPageToken, files(id, name, mimeType, parents, size, modifiedTime, owners(emailAddress,displayName))"
             ).execute()
             archivos.extend(resp.get("files", []))
             page_token = resp.get("nextPageToken")
