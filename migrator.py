@@ -223,6 +223,10 @@ class DirectMigrator:
 
                 fid  = info['id']
                 name = info['name'].replace('\r', '').replace('\n', ' ').strip()
+                owners = info.get("owners", [])
+                owner_email = owners[0].get("emailAddress", "desconocido") if owners else "desconocido"
+                print(f"📁 Archivo: {name} → Propietario: {owner_email}")
+
 
                 # Saltar si ya existe
                 if skip_existing and fid in self.progress.get('migrated_files', set()):
@@ -309,6 +313,10 @@ class DirectMigrator:
             fid      = info['id']
             raw_name = info['name']
             name     = raw_name.replace('\r', '').replace('\n', ' ').strip()
+            owners = info.get("owners", [])
+            owner_email = owners[0].get("emailAddress", "desconocido") if owners else "desconocido"
+            print(f"📁 Archivo: {name} → Propietario: {owner_email}")
+
 
             # Saltar si ya existe
             if skip_existing and fid in self.progress.get('migrated_files', set()):
