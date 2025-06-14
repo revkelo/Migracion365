@@ -211,7 +211,6 @@ class DirectMigrator:
         processed = 0
 
 
-       
 
         # ─── Migrar "Mi unidad" ───
         self.logger.info("Iniciando migración de 'Mi unidad'...")
@@ -224,6 +223,16 @@ class DirectMigrator:
             fid      = info['id']
             raw_name = info['name']
             name     = raw_name.replace('\r', '').replace('\n', ' ').strip()
+            owners = info.get("owners", [])
+            if owners:
+                email = owners[0].get("emailAddress", "sin correo")
+                name  = owners[0].get("displayName", "sin nombre")
+            else:
+                email = "desconocido"
+                name  = "desconocido"
+            print(f"📁 {info['name']} → Propietario: {name} <{email}>")
+
+
 
             # Saltar si ya existe
             if skip_existing and fid in self.progress.get('migrated_files', set()):

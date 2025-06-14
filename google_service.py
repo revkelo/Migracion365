@@ -286,7 +286,6 @@ class GoogleService:
         files_dict[id]   = {id, name, mimeType, parents, size, modifiedTime}
     """
     def listar_archivos_y_carpetas(self):
-
         folders, files = {}, {}
         page_token = None
         total_size = 0
@@ -297,16 +296,24 @@ class GoogleService:
                 pageSize=1000,
                 pageToken=page_token
             ).execute()
+
             for item in res.get('files', []):
+                owners = item.get("owners", [])
+                es_mio = any(o.get("emailAddress") == self.usuario for o in owners)
+                if not es_mio:
+                    continue  # Solo quiero mis archivos (no compartidos conmigo)
+
                 if item['mimeType'] == 'application/vnd.google-apps.folder':
                     folders[item['id']] = item
                 else:
                     files[item['id']] = item
                     total_size += int(item.get('size', 0) or 0)
+
             page_token = res.get('nextPageToken')
             if not page_token:
                 break
         return folders, files, total_size
+
 
     """
     Reconstruye la ruta completa de carpetas dado un parent_id.
@@ -340,7 +347,7 @@ class GoogleService:
                 q="sharedWithMe = true and trashed = false",
                 pageSize=1000,
                 pageToken=page_token,
-                fields="nextPageToken, files(id, name, mimeType, parents, size, modifiedTime)"
+                fields="nextPageToken, files(id, name, mimeType, parents, size, modifiedTime, owners(emailAddress,displayName))"
             ).execute()
             archivos.extend(resp.get("files", []))
             page_token = resp.get("nextPageToken")
