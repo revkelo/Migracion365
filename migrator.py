@@ -18,7 +18,7 @@ import time
 import logging
 from typing import Callable, Optional
 import threading
-from config import PROGRESS_FILE, LOG_FILE, GOOGLE_EXPORT_FORMATS
+from config import PROGRESS_FILE, LOG_FILE, GOOGLE_EXPORT_FORMATS,OFFICE_MIME_TYPES
 from utils import cargar_proceso, guardar_progreso, limpiar_archivos
 from google_service import GoogleService
 from onedrive_service import OneDriveService
@@ -168,7 +168,10 @@ class DirectMigrator:
         if self.workspace_only:
             mi_entries = [
                 f for f in mi_entries
-                if f['mimeType'] in GOOGLE_EXPORT_FORMATS
+                if (
+                    f['mimeType'] in GOOGLE_EXPORT_FORMATS           # Docs, Sheets, Slides, Forms
+                    or f['mimeType'] in OFFICE_MIME_TYPES            # docx, xlsx, pptx nativos
+                )
             ]
         mi_total = len(mi_entries)
 
@@ -189,7 +192,10 @@ class DirectMigrator:
                 continue
             contenido = self.google.listar_contenido_drive(unidad['id'])
             if self.workspace_only:
-                shared_total += sum(1 for a in contenido if a['mimeType'] in GOOGLE_EXPORT_FORMATS)
+                shared_total += sum(
+                    1 for a in contenido
+                    if a['mimeType'] in GOOGLE_EXPORT_FORMATS or a['mimeType'] in OFFICE_MIME_TYPES
+                )
             else:
                 shared_total += len(contenido)
 
@@ -229,11 +235,26 @@ class DirectMigrator:
             # Calcular ruta en Drive
             parents = info.get('parents') or []
             if parents:
-                path_parts = self.google.obtener_ruta_carpeta(parents[0], folders)
+                path_parts, root_folder_id = self.google.obtener_ruta_carpeta(parents[0], folders)
             else:
                 path_parts = []
+                root_folder_id = None
+
             folder_path = '/'.join(path_parts)
             drive_path  = f"{folder_path}/{name}" if folder_path else name
+
+            # Determinar si la carpeta raíz es compartida contigo
+            es_compartido = False
+            if root_folder_id:
+                folder_info = folders.get(root_folder_id, {})
+                folder_owners = folder_info.get("owners", [])
+                if folder_owners:
+                    folder_owner_email = folder_owners[0].get("emailAddress", "")
+                    if folder_owner_email != self.correo_general:
+                        es_compartido = True
+
+
+
 
             # Verificar tamaño
             size_bytes = int(info.get('size', 0) or 0)
@@ -271,6 +292,12 @@ class DirectMigrator:
 
 
                 owners = info.get("owners", [])
+                
+                if es_compartido:
+                    remote_path = f"{self.onedrive_folder}/Compartidos Conmigo/{folder_path}/{ext_name}".lstrip('/')
+                else:
+                    remote_path = f"{self.onedrive_folder}/{folder_path}/{ext_name}".lstrip('/')
+                    
                 if owners:
                     email = owners[0].get("emailAddress", "sin correo")
                     name  = owners[0].get("displayName", "sin nombre")
@@ -282,9 +309,11 @@ class DirectMigrator:
                     email = "desconocido"
                     name  = "desconocido"
                 print(f"📁 {info['name']} → Propietario: {name} <{email}>")
+                
+                            # Construir la ruta remota en OneDrive
+
 
            
-              
                 print(remote_path)
                 t2 = time.perf_counter()
                 self.one.subir(
@@ -408,7 +437,10 @@ class DirectMigrator:
                 archivos_dict = {
                     a['id']: a
                     for a in archivos
-                    if a['mimeType'] in GOOGLE_EXPORT_FORMATS
+                    if (
+                        a['mimeType'] in GOOGLE_EXPORT_FORMATS
+                        or a['mimeType'] in OFFICE_MIME_TYPES
+                    )
                 }
             else:
                 archivos_dict = {
