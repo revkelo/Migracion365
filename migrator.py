@@ -156,14 +156,7 @@ class DirectMigrator:
         file_progress_callback: Optional[Callable[[int, int, str], None]] = None
         
     ):
-        # ─── Fase 1: “Compartidos conmigo” ───
-        swm_entries = self.google.listar_compartidos_conmigo()
-        if self.workspace_only:
-            swm_entries = [
-                f for f in swm_entries
-                if f['mimeType'] in GOOGLE_EXPORT_FORMATS
-            ]
-        swm_total = len(swm_entries)
+
 
         # ─── Fase 2: “Mi unidad” ───
         self.logger.info("Obteniendo archivos exportables de 'Mi unidad'...")
@@ -200,103 +193,19 @@ class DirectMigrator:
             else:
                 shared_total += len(contenido)
 
-        total_tasks = swm_total + mi_total + shared_total
+        total_tasks =  mi_total + shared_total
         self.logger.info(
             f"Total a migrar: {total_tasks} "
-            f"(Compartidos conmigo: {swm_total}, Mi unidad: {mi_total}, Unidades Compartidas: {shared_total})"
+            f"(Compartidos conmigo: , Mi unidad: {mi_total}, Unidades Compartidas: {shared_total})"
         )
         self.subida_estado(
-            f"Total a migrar: {total_tasks} (C:{swm_total}, M:{mi_total}, U:{shared_total})"
+            f"Total a migrar: {total_tasks} (C:, M:{mi_total}, U:{shared_total})"
         )
 
         processed = 0
 
 
-        # ─── Migrar "Compartidos conmigo" ───
-        if swm_entries:
-            self.logger.info("Iniciando migración de 'Compartidos conmigo'...")
-            self.subida_estado("Migrando Compartidos conmigo...")
-            for info in swm_entries:
-                if self.cancel_event and self.cancel_event.is_set():
-                    self.logger.info("Migración cancelada por usuario")
-                    return
-
-                fid  = info['id']
-                name = info['name'].replace('\r', '').replace('\n', ' ').strip()
-
-                # Saltar si ya existe
-                if skip_existing and fid in self.progress.get('migrated_files', set()):
-                    processed += 1
-                    if progress_callback:
-                        progress_callback(processed, total_tasks, name)
-                    continue
-
-                # Verificar tamaño
-                size_bytes = int(info.get('size', 0) or 0)
-                if size_bytes > MAX_FILE_SIZE_BYTES:
-                    mensaje = f"Tamaño excede 10 GB ({size_bytes/1024**3:.2f} GB). Se omitirá."
-                    self._log_error(name, mensaje)
-                    processed += 1
-                    if progress_callback:
-                        progress_callback(processed, total_tasks, name)
-                    continue
-
-                try:
-                    # Descargar
-                    t0 = time.perf_counter()
-                    self.subida_estado(f"Descargando '{name}'")
-                    data, ext_name = self.google.descargar(info)
-                    t1 = time.perf_counter()
-                    self.logger.info(f"Descarga {name}: {t1-t0:.2f}s")
-
-                    if data is None:
-                        raw_msg = getattr(self.google, 'last_error', None)
-                        mensaje = self._format_error(raw_msg) if raw_msg else "Descarga fallida (error desconocido)"
-                        self._log_error(name, mensaje)
-                        if mensaje == "No se pudo conectar al servidor de Google APIs.":
-                            raise ConnectionLost(mensaje)
-                        processed += 1
-                        if progress_callback:
-                            progress_callback(processed, total_tasks, name)
-                        continue
-
-                    data.seek(0, 2)
-                    total_bytes = data.tell()
-                    data.seek(0)
-
-                    # Subir a carpeta raíz "Compartidos conmigo"
-                    carpeta = "Compartidos conmigo"
-                    self.one.crear_carpeta(carpeta)
-                    remote_path = f"{carpeta}/{ext_name}"
-                    t2 = time.perf_counter()
-                    self.one.subir(
-                        file_data=data,
-                        remote_path=remote_path,
-                        size=total_bytes,
-                        progress_callback=lambda s, t, n=name:
-                            file_progress_callback(s, t, n)
-                            if file_progress_callback else None
-                    )
-                    t3 = time.perf_counter()
-                    self.logger.info(f"Subida '{name}': {t3-t2:.2f}s")
-
-                    # Guardar progreso
-                    self.progress.setdefault('migrated_files', set()).add(fid)
-                    guardar_progreso(PROGRESS_FILE, self.progress)
-
-                except Exception as e:
-                    raw_msg = str(e)
-                    mensaje = self._format_error(raw_msg)
-                    self._log_error(name, mensaje)
-                    if mensaje in (
-                        "Tiempo de espera agotado al leer los datos.",
-                        "No se pudo conectar al servidor de Google APIs."
-                    ):
-                        raise ConnectionLost(mensaje)
-
-                processed += 1
-                if progress_callback:
-                    progress_callback(processed, total_tasks, name)
+       
 
         # ─── Migrar "Mi unidad" ───
         self.logger.info("Iniciando migración de 'Mi unidad'...")
