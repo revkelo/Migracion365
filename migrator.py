@@ -44,7 +44,7 @@ Atributos:
 """
 class DirectMigrator:
     ERROR_LOG = 'migration_errors.txt'
-
+    correo_general = ''
 
     """
     Inicializa el migrador:
@@ -88,10 +88,10 @@ class DirectMigrator:
             self.logger.error("Los correos de Google y OneDrive no coinciden. Cancelando migración.")
             raise MigrationCancelled("Los correos de autenticación no coinciden.")
 
-
+        self.correo_general = correo_google
         self._init_logger()
         self.logger.info("DirectMigrator inicializado correctamente.")
-        
+    
         
     """
     Configura el logger de la clase 'DirectMigrator' solo si aún no tiene handlers.
@@ -269,8 +269,23 @@ class DirectMigrator:
                 total_bytes = data.tell()
                 data.seek(0)
 
-                # Subir
-                remote_path = f"{self.onedrive_folder}/{folder_path}/{ext_name}".lstrip('/')
+
+                owners = info.get("owners", [])
+                if owners:
+                    email = owners[0].get("emailAddress", "sin correo")
+                    name  = owners[0].get("displayName", "sin nombre")
+                    if email != self.correo_general:
+                        remote_path = f"{self.onedrive_folder}/Compartidos Conmigo/{folder_path}/{ext_name}".lstrip('/')
+                    else:
+                        remote_path = f"{self.onedrive_folder}/{folder_path}/{ext_name}".lstrip('/')
+                else:
+                    email = "desconocido"
+                    name  = "desconocido"
+                print(f"📁 {info['name']} → Propietario: {name} <{email}>")
+
+           
+              
+                print(remote_path)
                 t2 = time.perf_counter()
                 self.one.subir(
                     file_data=data,
