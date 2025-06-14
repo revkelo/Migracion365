@@ -18,7 +18,7 @@ import time
 import logging
 from typing import Callable, Optional
 import threading
-from config import PROGRESS_FILE, LOG_FILE, GOOGLE_EXPORT_FORMATS
+from config import PROGRESS_FILE, LOG_FILE, GOOGLE_EXPORT_FORMATS,OFFICE_MIME_TYPES
 from utils import cargar_proceso, guardar_progreso, limpiar_archivos
 from google_service import GoogleService
 from onedrive_service import OneDriveService
@@ -44,7 +44,7 @@ Atributos:
 """
 class DirectMigrator:
     ERROR_LOG = 'migration_errors.txt'
-
+    correo_general = ''
 
     """
     Inicializa el migrador:
@@ -88,10 +88,10 @@ class DirectMigrator:
             self.logger.error("Los correos de Google y OneDrive no coinciden. Cancelando migración.")
             raise MigrationCancelled("Los correos de autenticación no coinciden.")
 
-
+        self.correo_general = correo_google
         self._init_logger()
         self.logger.info("DirectMigrator inicializado correctamente.")
-        
+    
         
     """
     Configura el logger de la clase 'DirectMigrator' solo si aún no tiene handlers.
@@ -156,14 +156,7 @@ class DirectMigrator:
         file_progress_callback: Optional[Callable[[int, int, str], None]] = None
         
     ):
-        # ─── Fase 1: “Compartidos conmigo” ───
-        swm_entries = self.google.listar_compartidos_conmigo()
-        if self.workspace_only:
-            swm_entries = [
-                f for f in swm_entries
-                if f['mimeType'] in GOOGLE_EXPORT_FORMATS
-            ]
-        swm_total = len(swm_entries)
+
 
         # ─── Fase 2: “Mi unidad” ───
         self.logger.info("Obteniendo archivos exportables de 'Mi unidad'...")
@@ -175,7 +168,10 @@ class DirectMigrator:
         if self.workspace_only:
             mi_entries = [
                 f for f in mi_entries
-                if f['mimeType'] in GOOGLE_EXPORT_FORMATS
+                if (
+                    f['mimeType'] in GOOGLE_EXPORT_FORMATS           # Docs, Sheets, Slides, Forms
+                    or f['mimeType'] in OFFICE_MIME_TYPES            # docx, xlsx, pptx nativos
+                )
             ]
         mi_total = len(mi_entries)
 
@@ -196,116 +192,25 @@ class DirectMigrator:
                 continue
             contenido = self.google.listar_contenido_drive(unidad['id'])
             if self.workspace_only:
-                shared_total += sum(1 for a in contenido if a['mimeType'] in GOOGLE_EXPORT_FORMATS)
+                shared_total += sum(
+                    1 for a in contenido
+                    if a['mimeType'] in GOOGLE_EXPORT_FORMATS or a['mimeType'] in OFFICE_MIME_TYPES
+                )
             else:
                 shared_total += len(contenido)
 
-        total_tasks = swm_total + mi_total + shared_total
+        total_tasks =  mi_total + shared_total
         self.logger.info(
             f"Total a migrar: {total_tasks} "
-            f"(Compartidos conmigo: {swm_total}, Mi unidad: {mi_total}, Unidades Compartidas: {shared_total})"
+            f"(Compartidos conmigo: , Mi unidad: {mi_total}, Unidades Compartidas: {shared_total})"
         )
         self.subida_estado(
-            f"Total a migrar: {total_tasks} (C:{swm_total}, M:{mi_total}, U:{shared_total})"
+            f"Total a migrar: {total_tasks} (C:, M:{mi_total}, U:{shared_total})"
         )
 
         processed = 0
 
 
-        # ─── Migrar "Compartidos conmigo" ───
-        if swm_entries:
-            self.logger.info("Iniciando migración de 'Compartidos conmigo'...")
-            self.subida_estado("Migrando Compartidos conmigo...")
-            for info in swm_entries:
-                if self.cancel_event and self.cancel_event.is_set():
-                    self.logger.info("Migración cancelada por usuario")
-                    return
-
-                fid  = info['id']
-                name = info['name'].replace('\r', '').replace('\n', ' ').strip()
-                owners = info.get("owners", [])
-                if owners:
-                    email = owners[0].get("emailAddress", "sin correo")
-                    name  = owners[0].get("displayName", "sin nombre")
-                else:
-                    email = "desconocido"
-                    name  = "desconocido"
-                print(f"📁 {info['name']} → Propietario: {name} <{email}>")
-
-
-                # Saltar si ya existe
-                if skip_existing and fid in self.progress.get('migrated_files', set()):
-                    processed += 1
-                    if progress_callback:
-                        progress_callback(processed, total_tasks, name)
-                    continue
-
-                # Verificar tamaño
-                size_bytes = int(info.get('size', 0) or 0)
-                if size_bytes > MAX_FILE_SIZE_BYTES:
-                    mensaje = f"Tamaño excede 10 GB ({size_bytes/1024**3:.2f} GB). Se omitirá."
-                    self._log_error(name, mensaje)
-                    processed += 1
-                    if progress_callback:
-                        progress_callback(processed, total_tasks, name)
-                    continue
-
-                try:
-                    # Descargar
-                    t0 = time.perf_counter()
-                    self.subida_estado(f"Descargando '{name}'")
-                    data, ext_name = self.google.descargar(info)
-                    t1 = time.perf_counter()
-                    self.logger.info(f"Descarga {name}: {t1-t0:.2f}s")
-
-                    if data is None:
-                        raw_msg = getattr(self.google, 'last_error', None)
-                        mensaje = self._format_error(raw_msg) if raw_msg else "Descarga fallida (error desconocido)"
-                        self._log_error(name, mensaje)
-                        if mensaje == "No se pudo conectar al servidor de Google APIs.":
-                            raise ConnectionLost(mensaje)
-                        processed += 1
-                        if progress_callback:
-                            progress_callback(processed, total_tasks, name)
-                        continue
-
-                    data.seek(0, 2)
-                    total_bytes = data.tell()
-                    data.seek(0)
-
-                    # Subir a carpeta raíz "Compartidos conmigo"
-                    carpeta = "Compartidos conmigo"
-                    self.one.crear_carpeta(carpeta)
-                    remote_path = f"{carpeta}/{ext_name}"
-                    t2 = time.perf_counter()
-                    self.one.subir(
-                        file_data=data,
-                        remote_path=remote_path,
-                        size=total_bytes,
-                        progress_callback=lambda s, t, n=name:
-                            file_progress_callback(s, t, n)
-                            if file_progress_callback else None
-                    )
-                    t3 = time.perf_counter()
-                    self.logger.info(f"Subida '{name}': {t3-t2:.2f}s")
-
-                    # Guardar progreso
-                    self.progress.setdefault('migrated_files', set()).add(fid)
-                    guardar_progreso(PROGRESS_FILE, self.progress)
-
-                except Exception as e:
-                    raw_msg = str(e)
-                    mensaje = self._format_error(raw_msg)
-                    self._log_error(name, mensaje)
-                    if mensaje in (
-                        "Tiempo de espera agotado al leer los datos.",
-                        "No se pudo conectar al servidor de Google APIs."
-                    ):
-                        raise ConnectionLost(mensaje)
-
-                processed += 1
-                if progress_callback:
-                    progress_callback(processed, total_tasks, name)
 
         # ─── Migrar "Mi unidad" ───
         self.logger.info("Iniciando migración de 'Mi unidad'...")
@@ -339,11 +244,26 @@ class DirectMigrator:
             # Calcular ruta en Drive
             parents = info.get('parents') or []
             if parents:
-                path_parts = self.google.obtener_ruta_carpeta(parents[0], folders)
+                path_parts, root_folder_id = self.google.obtener_ruta_carpeta(parents[0], folders)
             else:
                 path_parts = []
+                root_folder_id = None
+
             folder_path = '/'.join(path_parts)
             drive_path  = f"{folder_path}/{name}" if folder_path else name
+
+            # Determinar si la carpeta raíz es compartida contigo
+            es_compartido = False
+            if root_folder_id:
+                folder_info = folders.get(root_folder_id, {})
+                folder_owners = folder_info.get("owners", [])
+                if folder_owners:
+                    folder_owner_email = folder_owners[0].get("emailAddress", "")
+                    if folder_owner_email != self.correo_general:
+                        es_compartido = True
+
+
+
 
             # Verificar tamaño
             size_bytes = int(info.get('size', 0) or 0)
@@ -379,8 +299,31 @@ class DirectMigrator:
                 total_bytes = data.tell()
                 data.seek(0)
 
-                # Subir
-                remote_path = f"{self.onedrive_folder}/{folder_path}/{ext_name}".lstrip('/')
+
+                owners = info.get("owners", [])
+                
+                if es_compartido:
+                    remote_path = f"{self.onedrive_folder}/Compartidos Conmigo/{folder_path}/{ext_name}".lstrip('/')
+                else:
+                    remote_path = f"{self.onedrive_folder}/{folder_path}/{ext_name}".lstrip('/')
+                    
+                if owners:
+                    email = owners[0].get("emailAddress", "sin correo")
+                    name  = owners[0].get("displayName", "sin nombre")
+                    if email != self.correo_general:
+                        remote_path = f"{self.onedrive_folder}/Compartidos Conmigo/{folder_path}/{ext_name}".lstrip('/')
+                    else:
+                        remote_path = f"{self.onedrive_folder}/{folder_path}/{ext_name}".lstrip('/')
+                else:
+                    email = "desconocido"
+                    name  = "desconocido"
+                print(f"📁 {info['name']} → Propietario: {name} <{email}>")
+                
+                            # Construir la ruta remota en OneDrive
+
+
+           
+                print(remote_path)
                 t2 = time.perf_counter()
                 self.one.subir(
                     file_data=data,
@@ -503,7 +446,10 @@ class DirectMigrator:
                 archivos_dict = {
                     a['id']: a
                     for a in archivos
-                    if a['mimeType'] in GOOGLE_EXPORT_FORMATS
+                    if (
+                        a['mimeType'] in GOOGLE_EXPORT_FORMATS
+                        or a['mimeType'] in OFFICE_MIME_TYPES
+                    )
                 }
             else:
                 archivos_dict = {
