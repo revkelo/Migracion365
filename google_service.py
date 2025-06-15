@@ -328,16 +328,17 @@ class GoogleService:
     - Sanitiza cada nombre de carpeta para evitar caracteres inválidos.
     - Devuelve una lista de nombres en orden desde raíz hasta la carpeta dada.
     """
-    def obtener_ruta_carpeta(self, parent_id: str, folders: dict) -> tuple[list, str]:
+    def obtener_ruta_carpeta(self, parent_id: str, folders: dict) -> list:
+
         path, current = [], parent_id
-        last_id = current
         while current in folders:
             folder = folders[current]
             path.append(limpiar_archivos(folder['name']))
             parents = folder.get('parents') or []
-            last_id = current
             current = parents[0] if parents else None
-        return list(reversed(path)), last_id
+        return list(reversed(path))
+    
+    
 
     
     
