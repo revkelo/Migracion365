@@ -1,9 +1,10 @@
+requests
+msal
+customtkinter
+Pillow
+pygame
+cryptography
 google-api-python-client
 google-auth
 google-auth-oauthlib
-cryptography
-msal
-requests
-Pillow
-customtkinter
-pygame
+python-docx
