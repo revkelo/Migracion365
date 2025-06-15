@@ -484,7 +484,7 @@ class DirectMigrator:
                     continue
 
                 if parents:
-                    path_parts = self.google.obtener_ruta_carpeta(parents[0], folders_dict)
+                    path_parts, _ = self.google.obtener_ruta_carpeta(parents[0], folders_dict)
                 else:
                     path_parts = []
                 ruta_interna = "/".join(path_parts)
