@@ -286,27 +286,38 @@ class GoogleService:
         files_dict[id]   = {id, name, mimeType, parents, size, modifiedTime}
     """
     def listar_archivos_y_carpetas(self):
-
         folders, files = {}, {}
         page_token = None
         total_size = 0
+
         while True:
             res = self.drive.files().list(
                 q="trashed = false",
-                fields="nextPageToken, files(id, name, mimeType, parents, size, modifiedTime)",
+                fields=(
+                    "nextPageToken, files("
+                    "id, name, mimeType, parents, size, modifiedTime, "
+                    "owners(emailAddress,displayName)"
+                    ")"
+                ),
                 pageSize=1000,
                 pageToken=page_token
             ).execute()
+
             for item in res.get('files', []):
+                # Ya no filtramos por propietario: incluimos TODO
                 if item['mimeType'] == 'application/vnd.google-apps.folder':
                     folders[item['id']] = item
                 else:
                     files[item['id']] = item
                     total_size += int(item.get('size', 0) or 0)
+
             page_token = res.get('nextPageToken')
             if not page_token:
                 break
+
         return folders, files, total_size
+
+
 
     """
     Reconstruye la ruta completa de carpetas dado un parent_id.
@@ -317,15 +328,17 @@ class GoogleService:
     - Sanitiza cada nombre de carpeta para evitar caracteres inválidos.
     - Devuelve una lista de nombres en orden desde raíz hasta la carpeta dada.
     """
-    def obtener_ruta_carpeta(self, parent_id: str, folders: dict) -> list:
-
+    def obtener_ruta_carpeta(self, parent_id: str, folders: dict) -> tuple[list, str]:
         path, current = [], parent_id
+        last_id = current
         while current in folders:
             folder = folders[current]
             path.append(limpiar_archivos(folder['name']))
             parents = folder.get('parents') or []
+            last_id = current
             current = parents[0] if parents else None
-        return list(reversed(path))
+        return list(reversed(path)), last_id
+
     
     
     
@@ -338,7 +351,7 @@ class GoogleService:
                 q="sharedWithMe = true and trashed = false",
                 pageSize=1000,
                 pageToken=page_token,
-                fields="nextPageToken, files(id, name, mimeType, parents, size, modifiedTime)"
+                fields="nextPageToken, files(id, name, mimeType, parents, size, modifiedTime, owners(emailAddress,displayName))"
             ).execute()
             archivos.extend(resp.get("files", []))
             page_token = resp.get("nextPageToken")
@@ -346,7 +359,28 @@ class GoogleService:
                 break
         return archivos
 
-    
+
+    def obtener_nombres_carpetas_compartidas_conmigo(self) -> set[str]:
+        """
+        Devuelve un conjunto con los nombres de carpetas que están en 'Compartido conmigo'.
+        """
+        query = "sharedWithMe = true and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
+        carpetas = []
+        page_token = None
+        while True:
+            res = self.drive.files().list(
+                q=query,
+                pageSize=1000,
+                fields="nextPageToken, files(name)",
+                pageToken=page_token
+            ).execute()
+            carpetas.extend(res.get("files", []))
+            page_token = res.get("nextPageToken")
+            if not page_token:
+                break
+        return {c['name'] for c in carpetas}
+
+
     
     """
     Descarga o exporta un archivo de Google Drive según su MIME type.

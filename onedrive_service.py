@@ -237,12 +237,25 @@ class OneDriveService:
         file_data: io.BytesIO,
         remote_path: str,
         size: int,
-        progress_callback: Optional[Callable[[int, int, str], None]] = None
+        progress_callback: Optional[Callable[[int, int, str], None]] = None,
+        overwrite: bool = False 
     ) -> bool:
   
         headers = {"Authorization": f"Bearer {self.token}"}
         filename = limpiar_archivos(os.path.basename(remote_path))
 
+
+
+        if not overwrite:
+            check_url = f"https://graph.microsoft.com/v1.0/me/drive/root:/{remote_path}"
+            check_resp = requests.get(check_url, headers=headers)
+            if check_resp.status_code == 200:
+                self.logger.info(f"Omitido: Ya existe → {remote_path}")
+                return True
+            elif check_resp.status_code != 404:
+                self.logger.warning(f"Error al verificar existencia de {remote_path}: {check_resp.status_code}")
+                return False
+            
         if size > LARGE_FILE_THRESHOLD:
             return self.subir_grande(file_data, remote_path, headers, size, progress_callback)
         else:
