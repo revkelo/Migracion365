@@ -89,9 +89,6 @@ class DirectMigrator:
             raise MigrationCancelled("Los correos de autenticación no coinciden.")
 
         self.correo_general = correo_google
-        self.shared_folder_names = self.google.obtener_nombres_carpetas_compartidas_conmigo()
-        print(f"Carpetas compartidas encontradas: {self.shared_folder_names}")
-
         self._init_logger()
         self.logger.info("DirectMigrator inicializado correctamente.")
     
@@ -241,7 +238,7 @@ class DirectMigrator:
             if skip_existing and fid in self.progress.get('migrated_files', set()):
                 processed += 1
                 if progress_callback:
-                    progress_callback(processed, total_tasks, raw_name)
+                    progress_callback(processed, total_tasks, name)
                 continue
 
             # Calcular ruta en Drive
@@ -255,9 +252,15 @@ class DirectMigrator:
             folder_path = '/'.join(path_parts)
             drive_path  = f"{folder_path}/{name}" if folder_path else name
 
-
-            es_compartido = path_parts and path_parts[0] in self.shared_folder_names
-
+            # Determinar si la carpeta raíz es compartida contigo
+            es_compartido = False
+            if root_folder_id:
+                folder_info = folders.get(root_folder_id, {})
+                folder_owners = folder_info.get("owners", [])
+                if folder_owners:
+                    folder_owner_email = folder_owners[0].get("emailAddress", "")
+                    if folder_owner_email != self.correo_general:
+                        es_compartido = True
 
 
 
@@ -299,7 +302,10 @@ class DirectMigrator:
 
                 owners = info.get("owners", [])
                 
-
+                if es_compartido:
+                    remote_path = f"{self.onedrive_folder}/Compartidos Conmigo/{folder_path}/{ext_name}".lstrip('/')
+                else:
+                    remote_path = f"{self.onedrive_folder}/{folder_path}/{ext_name}".lstrip('/')
                     
                 if owners:
                     email = owners[0].get("emailAddress", "sin correo")
@@ -307,10 +313,7 @@ class DirectMigrator:
                     if email != self.correo_general:
                         remote_path = f"{self.onedrive_folder}/Compartidos Conmigo/{folder_path}/{ext_name}".lstrip('/')
                     else:
-                        if es_compartido:
-                            remote_path = f"{self.onedrive_folder}/Compartidos Conmigo/{folder_path}/{ext_name}".lstrip('/')
-                        else:
-                            remote_path = f"{self.onedrive_folder}/{folder_path}/{ext_name}".lstrip('/')
+                        remote_path = f"{self.onedrive_folder}/{folder_path}/{ext_name}".lstrip('/')
                 else:
                     email = "desconocido"
                     name  = "desconocido"

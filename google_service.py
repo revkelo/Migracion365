@@ -289,22 +289,20 @@ class GoogleService:
         folders, files = {}, {}
         page_token = None
         total_size = 0
-
         while True:
             res = self.drive.files().list(
                 q="trashed = false",
-                fields=(
-                    "nextPageToken, files("
-                    "id, name, mimeType, parents, size, modifiedTime, "
-                    "owners(emailAddress,displayName)"
-                    ")"
-                ),
+                fields="nextPageToken, files(id, name, mimeType, parents, size, modifiedTime, owners(emailAddress,displayName))",
                 pageSize=1000,
                 pageToken=page_token
             ).execute()
 
             for item in res.get('files', []):
-                # Ya no filtramos por propietario: incluimos TODO
+                owners = item.get("owners", [])
+                es_mio = any(o.get("emailAddress") == self.usuario for o in owners)
+                if not es_mio:
+                    continue  # Solo quiero mis archivos (no compartidos conmigo)
+
                 if item['mimeType'] == 'application/vnd.google-apps.folder':
                     folders[item['id']] = item
                 else:
@@ -314,9 +312,7 @@ class GoogleService:
             page_token = res.get('nextPageToken')
             if not page_token:
                 break
-
         return folders, files, total_size
-
 
 
     """
@@ -360,28 +356,7 @@ class GoogleService:
                 break
         return archivos
 
-
-    def obtener_nombres_carpetas_compartidas_conmigo(self) -> set[str]:
-        """
-        Devuelve un conjunto con los nombres de carpetas que están en 'Compartido conmigo'.
-        """
-        query = "sharedWithMe = true and mimeType = 'application/vnd.google-apps.folder' and trashed = false"
-        carpetas = []
-        page_token = None
-        while True:
-            res = self.drive.files().list(
-                q=query,
-                pageSize=1000,
-                fields="nextPageToken, files(name)",
-                pageToken=page_token
-            ).execute()
-            carpetas.extend(res.get("files", []))
-            page_token = res.get("nextPageToken")
-            if not page_token:
-                break
-        return {c['name'] for c in carpetas}
-
-
+    
     
     """
     Descarga o exporta un archivo de Google Drive según su MIME type.
