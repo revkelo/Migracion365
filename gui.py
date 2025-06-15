@@ -22,6 +22,7 @@ from onedrive_service import OneDriveTokenExpired
 from archivo import ErrorApp
 from utils import ruta_absoluta
 import pygame
+import webbrowser
 
 
 
@@ -111,6 +112,14 @@ class MigrationApp(ctk.CTk):
             command=self._on_toggle_workspace
         )
         menubar.add_cascade(label="Archivos", menu=archivos_menu)
+        
+        menubar.add_command(
+            label="Recomendación",
+            command=lambda: webbrowser.open(
+                "https://support.google.com/a/users/answer/13022292?hl=es"
+            )
+        )
+        
         self.config(menu=menubar)
 
 
