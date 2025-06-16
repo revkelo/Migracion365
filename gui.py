@@ -114,10 +114,10 @@ class MigrationApp(ctk.CTk):
         menubar.add_cascade(label="Archivos", menu=archivos_menu)
         
         menubar.add_command(
+            
+            
             label="Recomendación",
-            command=lambda: webbrowser.open(
-                "https://support.google.com/a/users/answer/13022292?hl=es"
-            )
+            command=self.recomendar
         )
         
         self.config(menu=menubar)
@@ -135,7 +135,20 @@ class MigrationApp(ctk.CTk):
         self.after(200, self.mensaje_bienvenida) 
 
 
-
+    def recomendar(self):
+        try:
+            self._play_notification(ruta_absoluta("./gui/assets/bell.mp3"))
+        except Exception:
+            pass
+        mb.showinfo(
+            "Migracion365",
+            "Recomendación de migración:\n\n"
+            "Para un proceso más eficiente, utiliza esta aplicación para migrar únicamente los archivos de tipo Workspace.\n\n"
+            "Ahora se agregó la opción de migrar todos los archivos, pero este proceso puede demorar mucho tiempo y requerirá que autentiques varias veces dependiendo de cuánto se demore la migración.\n\n"
+            "Para archivos grandes o de otros tipos, se recomienda instalar la aplicación oficial Google Drive para escritorio y moverlos manualmente a tu carpeta de OneDrive en tu computadora."
+        )
+        webbrowser.open(
+                "https://support.google.com/a/users/answer/13022292?hl=es")
 
     def _on_toggle_workspace(self):
         # Si ya está migrando, bloqueamos el cambio
