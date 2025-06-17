@@ -443,6 +443,7 @@ class MigrationApp(ctk.CTk):
         self.velocidad_lbl.configure(text="")
         self.tiempo_lbl.configure(text="")
         self.faltan_lbl.configure(text="")
+        self.title(f"Migracion365")
 
 
     """
@@ -508,8 +509,12 @@ class MigrationApp(ctk.CTk):
             # Calcular progreso general
             pct = proc / total
             self.after(0, lambda: self._subida_global(pct, name))
+            porcentaje = int(pct * 100)
             
-            
+            self.after(0, lambda: [
+                self._subida_global(pct, name),
+                self.title(f"Migracion365 ({porcentaje}%)")
+            ])
             restantes = total - proc
             self.after(0, lambda: self.faltan_lbl.configure(text=f"Faltan: {restantes} de {total} archivos"))
 
