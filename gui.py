@@ -141,12 +141,17 @@ class MigrationApp(ctk.CTk):
         except Exception:
             pass
         mb.showinfo(
-            "Migracion365",
-            "Recomendación de migración:\n\n"
-            "Para un proceso más eficiente, utiliza esta aplicación para migrar únicamente los archivos de tipo Workspace.\n\n"
-            "Ahora se agregó la opción de migrar todos los archivos, pero este proceso puede demorar mucho tiempo y requerirá que autentiques varias veces dependiendo de cuánto se demore la migración.\n\n"
-            "Para archivos grandes o de otros tipos, se recomienda instalar la aplicación oficial Google Drive para escritorio y moverlos manualmente a tu carpeta de OneDrive en tu computadora."
+            "Migracion365 - Recomendación",
+            "📁 Migración recomendada:\n"
+            "• Comienza migrando solo los archivos Workspace (Documentos, Hojas de cálculo, Presentaciones, Formularios).\n"
+            "• Esta opción es más rápida y confiable.\n\n"
+            "🗃️ Luego, si lo deseas, puedes migrar todos los archivos, pero ten en cuenta:\n"
+            "• ❗ Puede tardar bastante tiempo.\n"
+            "• 🔐 Requiere múltiples autenticaciones si se demora mucho.\n\n"
+            "💡 Consejo:\n"
+            "Para archivos grandes o formatos distintos, te recomendamos usar la app oficial de Google Drive para escritorio y moverlos manualmente a tu carpeta de OneDrive."
         )
+
         webbrowser.open(
                 "https://support.google.com/a/users/answer/13022292?hl=es")
 
@@ -164,13 +169,13 @@ class MigrationApp(ctk.CTk):
                 self._play_notification(ruta_absoluta("./gui/assets/bell.mp3"))
             except Exception:
                 pass
-            mb.showinfo("Migracion365","Filtrando: sólo archivos Workspace")
+
         else:
             try:
                 self._play_notification(ruta_absoluta("./gui/assets/bell.mp3"))
             except Exception:
                 pass
-            mb.showinfo("Migracion365", "Filtrando: todos los archivos\nPuede tardar más tiempo y auntenticar muchas veces")
+
 
 
     def _play_notification(self, ruta_mp3: str):
@@ -335,8 +340,18 @@ class MigrationApp(ctk.CTk):
 
         
     def iniciar_migracion(self):
-
+        continuar = True
         if self._is_running:
+            return
+        
+        if not self.only_workspace.get():
+            continuar = mb.askyesno(
+                "Advertencia",
+                "Estás por migrar todos los archivos, lo cual puede demorar mucho tiempo y requerir múltiples autenticaciones.\n\n"
+                "Se recomienda primero migrar los archivos de tipo Workspace y luego todos los archivos.\n\n"
+                "¿Deseas continuar con la migración de todos los archivos?"
+            )
+        if not continuar:
             return
 
         self._is_running = True
@@ -673,7 +688,7 @@ class MigrationApp(ctk.CTk):
         self.velocidad_lbl.configure(text="")
         self.tiempo_lbl.configure(text="")
         self.faltan_lbl.configure(text="")
-
+        self.title(f"Migracion365")
         self._bring_to_front
         
     """
