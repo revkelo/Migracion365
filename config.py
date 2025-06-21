@@ -19,6 +19,7 @@ GOOGLE_SCOPES = [
     'https://www.googleapis.com/auth/forms.body.readonly'
 ]
 
+KEY = b"HG5GHGW3o9bMUMWUmz7khGjhELzFUJ9W-52s_ZnIC40="
 
 """
 Configuración de OAuth para OneDrive:
