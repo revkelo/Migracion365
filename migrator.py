@@ -232,11 +232,11 @@ class DirectMigrator:
             owners = info.get("owners", [])
             if owners:
                 email = owners[0].get("emailAddress", "sin correo")
-                name  = owners[0].get("displayName", "sin nombre")
+                owner_name  = owners[0].get("displayName", "sin nombre")
             else:
                 email = "desconocido"
-                name  = "desconocido"
-            print(f"📁 {info['name']} → Propietario: {name} <{email}>")
+                owner_name  = "desconocido"
+            print(f"📁 {info['name']} → Propietario: {owner_name} <{email}>")
 
 
 
@@ -244,7 +244,7 @@ class DirectMigrator:
             if skip_existing and fid in self.progress.get('migrated_files', set()):
                 processed += 1
                 if progress_callback:
-                    progress_callback(processed, total_tasks, raw_name)
+                    progress_callback(processed, total_tasks, name)
                 continue
 
             # Calcular ruta en Drive
@@ -279,8 +279,9 @@ class DirectMigrator:
             try:
                 # Descargar
                 t0 = time.perf_counter()
-                self.subida_estado(f"Descargando {raw_name}")
+                self.subida_estado(f"Descargando {name}")
                 data, ext_name = self.google.descargar(info)
+                
                 t1 = time.perf_counter()
                 self.logger.info(f"Descarga {name}: {t1-t0:.2f}s")
                 folder_path = '/'.join(path_parts)
