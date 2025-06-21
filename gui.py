@@ -67,7 +67,7 @@ class MigrationApp(ctk.CTk):
     def __init__(self):
         super().__init__()
         self.error_win = None
-        self.title("Migracion365")
+        self.title(f"Migracion365 - Unidades Compartidas")
         self._google_auth_url = None    
         self._google_flow = None      
         self.boton_reabrir_link = None 
@@ -458,7 +458,7 @@ class MigrationApp(ctk.CTk):
         self.velocidad_lbl.configure(text="")
         self.tiempo_lbl.configure(text="")
         self.faltan_lbl.configure(text="")
-        self.title(f"Migracion365")
+        self.title(f"Migracion365 - Unidades Compartidas")
 
 
     """
@@ -528,7 +528,7 @@ class MigrationApp(ctk.CTk):
             
             self.after(0, lambda: [
                 self._subida_global(pct, name),
-                self.title(f"Migracion365 ({porcentaje}%)")
+                self.title(f"Migracion365 - Unidades Compartidas ({porcentaje}%)")
             ])
             restantes = total - proc
             self.after(0, lambda: self.faltan_lbl.configure(text=f"Faltan: {restantes} de {total} archivos"))
@@ -688,7 +688,7 @@ class MigrationApp(ctk.CTk):
         self.velocidad_lbl.configure(text="")
         self.tiempo_lbl.configure(text="")
         self.faltan_lbl.configure(text="")
-        self.title(f"Migracion365")
+        self.title(f"Migracion365 - Unidades Compartidas")
         self._bring_to_front
         
     """
