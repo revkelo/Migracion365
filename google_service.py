@@ -20,10 +20,10 @@ from googleapiclient.http import MediaIoBaseDownload
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 from docx import Document
-from config import GOOGLE_SCOPES, GOOGLE_EXPORT_FORMATS
+from config import GOOGLE_SCOPES, GOOGLE_EXPORT_FORMATS,KEY
 from utils import limpiar_archivos
 
-KEY = b"HG5GHGW3o9bMUMWUmz7khGjhELzFUJ9W-52s_ZnIC40="
+
 
 """
 Carga el blob cifrado desde archivo.

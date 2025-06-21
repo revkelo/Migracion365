@@ -188,7 +188,7 @@ class DirectMigrator:
         total_tasks =  shared_total
         self.logger.info(
             f"Total a migrar: {total_tasks} "
-            f"(Unidades Compartidas: {shared_total})"
+            f"(Unidades Compartidas: {shared_total}"
         )
         self.subida_estado(
             f"Total a migrar: {shared_total})"
