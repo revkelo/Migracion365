@@ -72,6 +72,25 @@ class OneDriveService:
             self.logger.addHandler(ch)
             self.logger.addHandler(fh)
 
+
+    def obtener_fecha_modificacion(self, remote_path: str) -> str:
+        url = f"https://graph.microsoft.com/v1.0/me/drive/root:/{remote_path}"
+        headers = {"Authorization": f"Bearer {self.token}"}
+        try:
+            resp = requests.get(url, headers=headers)
+            if resp.status_code == 200:
+                fecha = resp.json().get("lastModifiedDateTime")
+                if fecha:
+                    return fecha
+   
+        except Exception as e:
+            self.logger.error(f"Error al obtener fecha de modificación: {e}")
+
+        # Fecha mínima por defecto (muy antigua)
+        return "1970-01-01T00:00:00Z"
+
+
+
     """
     Realiza la autenticación interactiva con MSAL, forzando
     un inicio de sesión limpio y obteniendo el token de acceso.
