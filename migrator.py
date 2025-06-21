@@ -222,6 +222,9 @@ class DirectMigrator:
             if self.cancel_event and self.cancel_event.is_set():
                 self.logger.info("Migración cancelada por usuario")
                 return
+            if info['mimeType'] == 'application/vnd.google-apps.shortcut':
+                self.logger.info(f"Omitido acceso directo: {info['name']}")
+                continue
 
             fid      = info['id']
             raw_name = info['name']
@@ -322,6 +325,22 @@ class DirectMigrator:
            
                 print(remote_path)
                 t2 = time.perf_counter()
+
+
+
+                fecha_drive = info.get('modifiedTime')
+                fecha_onedrive = self.one.obtener_fecha_modificacion(remote_path)
+
+     
+                if fecha_onedrive >= fecha_drive:
+                    self.logger.info(f"Omitido: {remote_path} en OneDrive es igual o más reciente.")
+                    self.progress.setdefault('migrated_files', set()).add(fid)
+                    guardar_progreso(PROGRESS_FILE, self.progress)
+                    processed += 1
+                    if progress_callback:
+                        progress_callback(processed, total_tasks, name)
+                    continue
+
                 self.one.subir(
                     file_data=data,
                     remote_path=remote_path,
@@ -461,6 +480,10 @@ class DirectMigrator:
                         f"Migración cancelada por usuario (en unidad compartida '{nombre_unidad}')"
                     )
                     return
+
+                if archivo['mimeType'] == 'application/vnd.google-apps.shortcut':
+                    self.logger.info(f"Omitido acceso directo: {archivo['name']}")
+                    continue
                 
                 
                 size_bytes = int(archivo.get('size', 0) or 0)
@@ -501,6 +524,19 @@ class DirectMigrator:
                         data.seek(0)
 
                         remote_path = f"{ruta_completa}/{final_name}".strip("/")
+
+                        fecha_drive = archivo.get('modifiedTime')
+                        fecha_onedrive = self.one.obtener_fecha_modificacion(remote_path)
+
+            
+                        if fecha_onedrive >= fecha_drive:
+                            self.logger.info(f"Omitido: {remote_path} en OneDrive es igual o más reciente.")
+                            self.progress.setdefault('migrated_files', set()).add(file_id)
+                            guardar_progreso(PROGRESS_FILE, self.progress)
+                            processed += 1
+                            if progress_callback:
+                                progress_callback(processed, total_tasks, file_name)
+                            continue
                         self.one.subir(
                             file_data=data,
                             remote_path=remote_path,
@@ -556,7 +592,6 @@ class DirectMigrator:
     Traduce mensajes de error crudos en algo legible para el usuario.
     """
     def _format_error(self, raw_msg: str) -> str:
-  
         msg = str(raw_msg)
 
         if 'exportSizeLimitExceeded' in msg:
@@ -565,6 +600,8 @@ class DirectMigrator:
             return "No tienes permiso para exportar este archivo desde Google Docs."
         if '403' in msg and 'export' in msg:
             return "No tienes permiso para exportar este archivo desde Google Docs."
+        if 'fileNotDownloadable' in msg:
+            return "Este archivo no puede ser descargado directamente. Usa exportación si es un archivo de Google Workspace."
         if '404' in msg:
             return "Archivo no encontrado."
         if 'timed out' in msg.lower():
