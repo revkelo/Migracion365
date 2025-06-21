@@ -537,6 +537,7 @@ class DirectMigrator:
                             if progress_callback:
                                 progress_callback(processed, total_tasks, file_name)
                             continue
+                        
                         self.one.subir(
                             file_data=data,
                             remote_path=remote_path,
