@@ -249,14 +249,15 @@ class DirectMigrator:
 
             # Calcular ruta en Drive
             parents = info.get('parents') or []
+            print(parents)
             if parents:
                 path_parts, root_folder_id = self.google.obtener_ruta_carpeta(parents[0], folders)
             else:
                 path_parts = []
                 root_folder_id = None
 
-            folder_path = '/'.join(path_parts)
-            drive_path  = f"{folder_path}/{name}" if folder_path else name
+
+
 
 
             es_compartido = path_parts and path_parts[0] in self.shared_folder_names
@@ -282,6 +283,8 @@ class DirectMigrator:
                 data, ext_name = self.google.descargar(info)
                 t1 = time.perf_counter()
                 self.logger.info(f"Descarga {name}: {t1-t0:.2f}s")
+                folder_path = '/'.join(path_parts)
+                drive_path = f"{folder_path}/{ext_name}" if folder_path else ext_name
 
                 if data is None:
                     raw_msg = getattr(self.google, 'last_error', None)
