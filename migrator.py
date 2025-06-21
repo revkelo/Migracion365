@@ -307,22 +307,18 @@ class DirectMigrator:
                 if owners:
                     email = owners[0].get("emailAddress", "sin correo")
                     name  = owners[0].get("displayName", "sin nombre")
-                    if email != self.correo_general:
-                        remote_path = f"{self.onedrive_folder}/Compartidos Conmigo/{folder_path}/{ext_name}".lstrip('/')
-                    else:
-                        if es_compartido:
-                            remote_path = f"{self.onedrive_folder}/Compartidos Conmigo/{folder_path}/{ext_name}".lstrip('/')
-                        else:
-                            remote_path = f"{self.onedrive_folder}/{folder_path}/{ext_name}".lstrip('/')
                 else:
                     email = "desconocido"
                     name  = "desconocido"
                 print(f"📁 {info['name']} → Propietario: {name} <{email}>")
                 
-                            # Construir la ruta remota en OneDrive
+          
 
-
-           
+                if email != self.correo_general or es_compartido:
+                    nuevo_nombre = f"{name}_SIN_COMPARTIR_COPIA_{ext_name}"
+                    remote_path = f"{self.onedrive_folder}/Compartidos Conmigo/{folder_path}/{nuevo_nombre}".lstrip('/')
+                else:
+                    remote_path = f"{self.onedrive_folder}/{folder_path}/{ext_name}".lstrip('/')
                 print(remote_path)
                 t2 = time.perf_counter()
 
