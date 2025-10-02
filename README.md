@@ -2,52 +2,57 @@
 
 Aplicación para migrar archivos desde Google Drive hacia OneDrive, preservando la estructura de carpetas y exportando formatos de Google Workspace.
 
-⚠️ No suspendas el equipo durante la migración para evitar errores de red.
----
+## Importante
 
-## 💻 Ejecutable para Windows
+**No suspendas el equipo durante la migración.**
 
-Dentro de la carpeta `exe/` se encuentra:
+## Requisitos
 
-```
-exe/
-└── Migracion365.exe
-```
+- Python 3.7 o superior
+- Bibliotecas especificadas en `requirements.txt`
 
-Este archivo es totalmente ejecutable en cualquier sistema **Windows 10 o superior**, **sin necesidad de tener Python instalado**.
+## Instalación
 
----
+1. Clona el repositorio:
 
-## 📁 Archivos requeridos junto al `.exe`
+   ```bash
+   git clone https://github.com/revkelo/Migracion365.git
+   ```
 
-Para que el ejecutable funcione correctamente, debes copiar junto a `Migracion365.exe` los siguientes archivos y carpetas:
+2. Navega al directorio del proyecto:
 
-- `credentials.json.enc`
-- Carpeta `gui/assets`
+   ```bash
+   cd Migracion365
+   ```
 
-Asegúrate de mantener la misma estructura que en el desarrollo.
+3. Instala las dependencias:
 
----
+   ```bash
+   pip install -r requirements.txt
+   ```
 
-## ✅ Requisitos previos
+## Autenticación
 
-1. Tener **Python 3.12 o superior** instalado.
-2. Instalar las dependencias con pip:
+Para autenticarte con Google Drive y OneDrive:
 
-```bash
-pip install customtkinter Pillow google-api-python-client google-auth google-auth-oauthlib msal requests tqdm python-docx
-```
+1. Sigue las instrucciones en el archivo `credentials.json.enc` para obtener las credenciales necesarias.
+2. Asegúrate de tener los permisos adecuados en ambas plataformas.
 
----
+## Uso
 
-## ▶️ Ejecutar la aplicación (modo desarrollo)
+Ejecuta el script principal:
 
 ```bash
 python main.py
 ```
 
-Esto iniciará la interfaz gráfica para comenzar la migración.
+Sigue las indicaciones en pantalla para seleccionar las carpetas a migrar y configurar las opciones deseadas.
 
----
+## Contribuciones
 
-© 2024 Kevin Gonzalez
+Las contribuciones son bienvenidas. Por favor, asegúrate de seguir las mejores prácticas de codificación y de documentar adecuadamente cualquier cambio realizado.
+
+## Licencia
+
+Este proyecto está bajo la Licencia MIT.
+
